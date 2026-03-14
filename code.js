@@ -327,7 +327,7 @@ if (action === 'getAppConfigmt') {
       if (row[0].toString().trim() === teacherId.trim() || row[0].toString() === "SYSTEM") {
         try {
           results.push({
-            code: row[1].toString(), name: row[2].toString(), topics: JSON.parse(row[3]),
+            code: row[1].toString().trim().replace(/^'/, ""), name: row[2].toString(), topics: JSON.parse(row[3]),
             fixedConfig: {
               duration: parseInt(row[4]), numMC: JSON.parse(row[5]), scoreMC: parseFloat(row[6]),
               mcL3: JSON.parse(row[7]), mcL4: JSON.parse(row[8]), numTF: JSON.parse(row[9]),
