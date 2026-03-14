@@ -324,7 +324,10 @@ if (action === 'getAppConfigmt') {
     const results = [];
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      if (row[0].toString().trim() === teacherId.trim() || row[0].toString() === "SYSTEM") {
+      const owner = row[0].toString().trim().toUpperCase();
+      const tid = teacherId.trim().toUpperCase();
+
+      if (owner === tid || owner === "SYSTEM") {
         try {
           results.push({
             code: row[1].toString().trim().replace(/^'/, ""), name: row[2].toString(), topics: JSON.parse(row[3]),
