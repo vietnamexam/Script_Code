@@ -324,13 +324,10 @@ if (action === 'getAppConfigmt') {
     const results = [];
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      const owner = row[0].toString().trim().toUpperCase();
-      const tid = teacherId.trim().toUpperCase();
-
-      if (owner === tid || owner === "SYSTEM") {
+      if (row[0].toString().trim() === teacherId.trim() || row[0].toString() === "SYSTEM") {
         try {
           results.push({
-            code: row[1].toString().trim().replace(/^'/, ""), name: row[2].toString(), topics: JSON.parse(row[3]),
+            code: row[1].toString(), name: row[2].toString(), topics: JSON.parse(row[3]),
             fixedConfig: {
               duration: parseInt(row[4]), numMC: JSON.parse(row[5]), scoreMC: parseFloat(row[6]),
               mcL3: JSON.parse(row[7]), mcL4: JSON.parse(row[8]), numTF: JSON.parse(row[9]),
@@ -351,13 +348,13 @@ if (action === 'getAppConfigmt') {
     var rows = sheet.getRange(2,1,lastRow-1,9).getValues();
     var questions = [];
     for (var i = 1; i < rows.length; i++) {
-      var raw = rows[i][2];
+      var raw = rows[i][4];
       if (!raw) continue;
       try {
         var jsonText = raw.replace(/(\w+)\s*:/g, '"$1":').replace(/'/g, '"');
         var obj = JSON.parse(jsonText);
         if (!obj.classTag) obj.classTag = rows[i][1];
-        obj.loigiai = rows[i][4] || "";
+        obj.loigiai = rows[i][7] || "";
         questions.push(obj);
       } catch (e) { }
     }
