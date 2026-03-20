@@ -1,7 +1,6 @@
 // --- FILE TỔNG TRÊN GITHUB ---
 
-function mainDoGet(e) {
-  function doGet(e) {
+function mainDoGet(e) { 
 
   const params = e?.parameter || {};
   const type = params.type; 
