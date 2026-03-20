@@ -709,12 +709,9 @@ function createResponseW(status, message, data) {
     data: data || null
   });
   
-  return ContentService
+ return ContentService
     .createTextOutput(JSON.stringify({ status, message, data }))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*") // ✅ BẮT BUỘC
-    .setHeader("Access-Control-Allow-Methods", "GET, POST") // ✅ thêm cho chắc
-    .setHeader("Access-Control-Allow-Headers", "*"); // ✅ thêm luôn
+    .setMimeType(ContentService.MimeType.JSON);
 }
 function createResponse(status, message, data) {
   var output = JSON.stringify({
@@ -723,12 +720,9 @@ function createResponse(status, message, data) {
     data: data || null
   });
   
-  return ContentService
+ return ContentService
     .createTextOutput(JSON.stringify({ status, message, data }))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*") // ✅ BẮT BUỘC
-    .setHeader("Access-Control-Allow-Methods", "GET, POST") // ✅ thêm cho chắc
-    .setHeader("Access-Control-Allow-Headers", "*"); // ✅ thêm luôn
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Giữ lại resJSON để phục vụ các đoạn code cũ đang gọi tên này
