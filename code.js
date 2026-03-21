@@ -569,6 +569,10 @@ function mainDoPost(e) {
           .map(r => {
             let raw = r[4];
             if (!raw) return null;
+          .filter(Boolean)
+          .sort((a, b) => {
+                    return String(a.id).localeCompare(String(b.id));
+                      });
 
             // Thay thế đoạn từ dòng 130 đến 135 bằng đoạn này:
             let contentStr = raw.toString().trim();
