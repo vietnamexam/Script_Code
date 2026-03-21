@@ -190,23 +190,20 @@ function mainDoGet(e) {
 
 
 
-  // lấy dạng câu hỏi
+ // lấy dạng câu hỏi
   if (action === 'getAppConfig') {
-
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      data: getAppConfig(mon) // Truyền môn vào đây
+      data: getAppConfig()
     })).setMimeType(ContentService.MimeType.JSON);
   }
-
-  // THÊM NHÁNH NÀY CHO MA TRẬN
-  if (action === 'getAppConfigmt') {
-
-    return ContentService.createTextOutput(JSON.stringify({
-      status: "success",
-      data: getAppConfigmt(mon) // Phải truyền mon vào đây
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
+// THÊM NHÁNH NÀY CHO MA TRẬN
+if (action === 'getAppConfigmt') {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "success",
+    data: getAppConfigmt()
+  })).setMimeType(ContentService.MimeType.JSON);
+}
 
   // 4. KIỂM TRA GIÁO VIÊN (Dành cho Module Giáo viên tạo đề word)
 
@@ -1026,7 +1023,8 @@ function getSpreadsheetByTarget(targetId) {
 
 // Hàm lấy cấu hình chuyên đề
 // Hàm lấy cấu hình chuyên đề từ sheet dangcd
-function getAppConfig(mon) {
+// Hàm lấy cấu hình chuyên đề từ sheet dangcd
+function getAppConfig() {
   var sheetCD = ssAdmin.getSheetByName("dangcd");
   var dataCD = sheetCD.getDataRange().getValues();
 
@@ -1038,14 +1036,13 @@ function getAppConfig(mon) {
     var lop = dataCD[i][0];   // Cột A: lop
     var idcd = dataCD[i][1];  // Cột B: idcd
     var namecd = dataCD[i][2]; // Cột C: namecd
-    var monId = dataCD[i][3];
 
-    if (lop && idcd && namecd && clean(monId) === clean(mon, "chung")) {
+    if (lop) {
       // 1. Đẩy vào danh sách chuyên đề
       topics.push({
-        grade: Number(lop),
-        id: String(idcd),
-        name: String(namecd)
+        grade: lop,
+        id: idcd,
+        name: namecd
       });
 
       // 2. Thu thập danh sách lớp (để nạp vào CLASS_ID bên React)
@@ -1060,8 +1057,7 @@ function getAppConfig(mon) {
   };
 }
 
-
-function getAppConfigmt(mon) {
+function getAppConfigmt() {
   try {
     // Lưu ý: Đảm bảo ssAdmin đã được khai báo ở đầu script của bạn
     var sheetCD = ssAdmin.getSheetByName("dangcd");
@@ -1075,11 +1071,10 @@ function getAppConfigmt(mon) {
       var lop = dataCD[i][0];    // Cột A: lop
       var idcd = dataCD[i][1];   // Cột B: idcd
       var namecd = dataCD[i][2]; // Cột C: namecd
-      var monId = dataCD[i][3];
 
-      if (lop && idcd && clean(monId) === clean(mon, "chung")) {
+      if (idcd) {
         topics.push({
-          grade: Number(lop),         // Khối lớp (10, 11, 12)
+          grade: lop,            // Khối lớp (10, 11, 12)
           id: String(idcd),      // ID chuyên đề (để lưu vào matrix)
           name: String(namecd)   // Tên để hiển thị cho GV chọn
         });
