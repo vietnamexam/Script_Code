@@ -20,7 +20,7 @@ if (!mon || mon === "undefined" || mon === "unknown") {
     })).setMimeType(ContentService.MimeType.JSON);
   }
   
-  //= TÌM CÂU HỎI LẺ
+  //= TÌM CÂU HỎI LẺ 
   if (action === "getSingleQuestion") {
 
   const sheet = ss.getSheetByName("exam_data");
