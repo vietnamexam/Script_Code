@@ -442,6 +442,35 @@ function mainDoPost(e) {
 
 
     // Ghi kết quả thi lẻ
+  // Ghi kết quả thi lẻ
+    if (data.action === "submitExam") {
+      try {
+
+        const sheetExams = ss.getSheetByName("exams");
+
+        // Tìm dòng chứa mã đề để biết hàng cần ghi hoặc ghi mới vào sheet kết quả
+        // Ở đây mình ví dụ ghi vào cuối sheet "exams" hoặc bạn nên tạo sheet "ketqua" riêng
+        const sheetKq = ss.getSheetByName("ketqua") || sheetExams;
+
+        sheetKq.appendRow([
+          data.timestamp,                                // Cột A
+          data.examCode || data.exams || "",             // Cột B: Nhận cả 2 tên biến
+          data.sbd || "",                                // Cột C
+          data.name || "",                               // Cột D
+          data.className || data.class || "",            // Cột E: Nhận cả 2 tên biến
+          data.tongdiem || 0,                            // Cột F
+          data.time || 0,                                // Cột G
+          data.details || ""                             // Cột H
+        ]);
+
+        return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+   // trộn đề
     if (action === "studentGetExam") {
       try {
         const sbd = data.sbd ? data.sbd.toString().trim() : "";
@@ -1244,6 +1273,43 @@ function deleteQuestionRow(rowIdx, mon) {
     return { status: "success" };
   } catch (e) {
     return { status: "error", message: e.toString() };
+  }
+}
+
+// ======= sửa câu hỏi =====================================================
+function updateQuestion(payload) {
+  try {
+    const data = payload.data;
+    const sheet = sheetNH;
+    const fullData = sheet.getDataRange().getValues();
+    const headers = fullData[0];
+    
+    // 1. Kiểm tra ID gửi lên có tồn tại không
+    if (!data.id) return { status: "error", message: "ID gửi lên bị trống!" };
+
+    // 2. Duyệt tìm dòng
+    for (var i = 1; i < fullData.length; i++) {
+      // KIỂM TRA: Nếu ô ID bị trống thì bỏ qua dòng này, không .toString() nữa
+      if (!fullData[i][0]) continue; 
+
+      // So sánh ID an toàn
+      if (fullData[i][0].toString() === data.id.toString()) {
+        const rowNum = i + 1;
+        
+        // Cập nhật các cột dựa trên tên Header
+        Object.keys(data).forEach(key => {
+          const colIdx = headers.indexOf(key);
+          if (colIdx !== -1) {
+            sheet.getRange(rowNum, colIdx + 1).setValue(data[key]);
+          }
+        });
+        
+        return { status: "success" };
+      }
+    }
+    return { status: "error", message: "Không tìm thấy ID: " + data.id };
+  } catch (e) {
+    return { status: "error", message: "Lỗi hệ thống: " + e.toString() };
   }
 }
 
