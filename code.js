@@ -10,6 +10,15 @@ function mainDoGet(e) {
 if (!mon || mon === "undefined" || mon === "unknown") {     
     mon = "chung";
 }
+  if (action === "checkAdminOTP") {
+    var userOTP = e.parameter.otp;   
+    var isCorrect = (userOTP === passAdmin);
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      verified: isCorrect
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
   
   //= TÌM CÂU HỎI LẺ
   if (action === "getSingleQuestion") {
