@@ -828,12 +828,12 @@ if (closeTime && now > closeTime) {
 }
 // ====================================================================CÁC HÀM PHỤ TRỢ (Để hết vào đây)
 function getLinkFromRouting(idNumber) {
-  const sheet = ss.getSheetByName("idgv");
+  const sheet = ssAdmin.getSheetByName("idgv");
   const data = sheet.getDataRange().getValues();
-  
+  const id = String(idNumber).trim();
   for (let i = 1; i < data.length; i++) {
     // Cột A: idNumber, Cột C: linkscript
-    if (data[i][0].toString().trim() === idNumber.toString().trim()) {
+    if (data[i][0].toString().trim() === id) {
       return data[i][2].toString().trim();
     }
   }
@@ -843,7 +843,7 @@ function getLinkFromRouting(idNumber) {
 function getSpreadsheetByTarget(targetId) {
   if (!targetId) return ss;
   
-  const sheet = ss.getSheetByName("idgv");
+  const sheet = ssAdmin.getSheetByName("idgv");
   const rows = sheet.getDataRange().getValues();
   
   for (let i = 1; i < rows.length; i++) {
