@@ -140,19 +140,23 @@ if (action === "checkAdminOTP") {
 
   return createResponse("success", "Đã cập nhật lời giải!");
 }
-
-
-
-   // lấy dạng câu hỏi
-   // lấy dạng câu hỏi
-  if (action === 'getAppConfig') {  
-  
+ // lấy dạng câu hỏi
+  if (action === 'getAppConfig') {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      data: getAppConfig()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+// THÊM NHÁNH NÀY CHO MA TRẬN
+if (action === 'getAppConfigmt') {
   return ContentService.createTextOutput(JSON.stringify({
     status: "success",
-    data: getAppConfig(mon) // Truyền môn vào đây
+    data: getAppConfigmt()
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
+
+   
 // 4. KIỂM TRA GIÁO VIÊN (Dành cho Module Giáo viên tạo đề word)
     
    
@@ -646,10 +650,10 @@ function replaceIdInBlock(block, newId) {
 }
 
 
-function getAppConfig(mon) {  
+function getAppConfig() {
   var sheetCD = ssAdmin.getSheetByName("dangcd");
   var dataCD = sheetCD.getDataRange().getValues();
-  
+
   var topics = [];
   var classesMap = {}; // Dùng để lọc danh sách lớp không trùng lặp
 
@@ -658,16 +662,13 @@ function getAppConfig(mon) {
     var lop = dataCD[i][0];   // Cột A: lop
     var idcd = dataCD[i][1];  // Cột B: idcd
     var namecd = dataCD[i][2]; // Cột C: namecd
-    var monId = clean(dataCD[i][3]);
-    var monReq = clean(mon);
 
-    if (lop && idcd && namecd && (monId === monReq || monId === "toan")) {
+    if (lop) {
       // 1. Đẩy vào danh sách chuyên đề
       topics.push({
-        grade: Number(lop),
-        id: String(idcd),      
-        name: String(namecd),
-        monId: monId
+        grade: lop,
+        id: idcd,
+        name: namecd
       });
 
       // 2. Thu thập danh sách lớp (để nạp vào CLASS_ID bên React)
@@ -678,8 +679,38 @@ function getAppConfig(mon) {
 
   return {
     topics: topics,
-    classes: Object.keys(classesMap).sort(function(a, b){ return a - b; }) // Trả về [9, 10, 11, 12] chẳng hạn
+    classes: Object.keys(classesMap).sort(function (a, b) { return a - b; }) // Trả về [9, 10, 11, 12] chẳng hạn
   };
+}
+
+function getAppConfigmt() {
+  try {
+    // Lưu ý: Đảm bảo ssAdmin đã được khai báo ở đầu script của bạn
+    var sheetCD = ssAdmin.getSheetByName("dangcd");
+    if (!sheetCD) return { topics: [] };
+
+    var dataCD = sheetCD.getDataRange().getValues();
+    var topics = [];
+
+    // Chạy từ dòng 2 (bỏ tiêu đề)
+    for (var i = 1; i < dataCD.length; i++) {
+      var lop = dataCD[i][0];    // Cột A: lop
+      var idcd = dataCD[i][1];   // Cột B: idcd
+      var namecd = dataCD[i][2]; // Cột C: namecd
+
+      if (idcd) {
+        topics.push({
+          grade: lop,            // Khối lớp (10, 11, 12)
+          id: String(idcd),      // ID chuyên đề (để lưu vào matrix)
+          name: String(namecd)   // Tên để hiển thị cho GV chọn
+        });
+      }
+    }
+
+    return { topics: topics };
+  } catch (e) {
+    return { topics: [], error: e.toString() };
+  }
 }
 // Reset QuiZ
  function resetQuizData(password) {
