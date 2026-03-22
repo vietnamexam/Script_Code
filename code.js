@@ -10,6 +10,65 @@ function mainDoGet(e) {
 if (!mon || mon === "undefined" || mon === "unknown") {     
     mon = "chung";
 }
+  //= TÌM CÂU HỎI LẺ
+  if (action === "getSingleQuestion") {
+
+  const sheet = ss.getSheetByName("exam_data");
+
+  const examCodeInput = (e.parameter.examCode || "").trim();
+  const questionIdInput = (e.parameter.questionId || "").trim();
+
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+
+    const rowExam = String(data[i][0]).trim();
+    const rowId = String(data[i][1]).trim();
+
+    if (rowExam === examCodeInput && rowId === questionIdInput) {
+
+  return createResponse(
+    "success",
+    "OK",
+    {
+      id: data[i][1],
+      classTag: data[i][2],
+      type: data[i][3],
+      question: data[i][4],
+      loigiai: data[i][5]
+    }
+  );
+
+}
+  }
+
+  return createResponse("error", "Không tìm thấy câu hỏi");
+} 
+
+  // Thêm vào trong function doGet(e)
+  if (action === 'getQuestionsByCode') {
+    const examCode = params.examCode;
+    const sheet = ss.getSheetByName("exam_data");
+    if (!sheet) return createResponse("error", "Chưa có dữ liệu exam_data");
+
+    const data = sheet.getDataRange().getValues();
+    const results = [];
+
+    for (let i = 1; i < data.length; i++) {
+      // Cột A là mã đề
+      if (data[i][0].toString() === examCode.toString()) {
+        try {
+          // Cột C chứa JSON câu hỏi
+          results.push(JSON.parse(data[i][2]));
+        } catch (err) {
+          results.push(data[i][2]);
+        }
+      }
+    }
+    return createResponse("success", "OK", results);
+  }
+
+   
 
 if (action === "checkAdminOTP") {
     const userOTP = (params.otp || "").trim();
@@ -514,6 +573,152 @@ function mainDoPost(e) {
 
       return createResponse("success", "Đã lưu " + rows.length + " câu hỏi thành công!");
     }
+    if (action === "studentGetExam") {
+      try {
+        const sbd = data.sbd ? data.sbd.toString().trim() : "";
+        const examCode = data.examCode ? data.examCode.toString().trim() : "";
+        const idgv = data.idgv ? data.idgv.toString().trim() : "";
+
+        const sheetDS = ss.getSheetByName("danhsach");
+        const sheetData = ss.getSheetByName("exam_data");
+        const sheetExam = ss.getSheetByName("exams");
+        const sheetKQ = ss.getSheetByName("ketqua"); // Bảng lưu kết quả thi
+        const allDataDS = sheetDS.getDataRange().getValues();
+        const idgvFixed = allDataDS[1] ? allDataDS[1][5].toString().trim() : "";
+
+        // 1. Check học sinh & Cấu hình đề (Thầy giữ logic cũ nhưng dùng .trim() cho chắc)
+        if (idgvFixed !== idgv) {
+          return createResponse("error", "Sai IDGV!");
+          }
+
+          // tìm học sinh
+          const student = allDataDS.slice(1).find(r =>
+          (r[0] || "").toString().trim() === sbd
+        );
+
+        if (!student) {
+          return createResponseW("error", "SBD không tồn tại!");
+        }
+
+
+        const exRow = sheetExam.getDataRange().getValues().find(r => (r[0] || "").toString() === examCode);
+        if (!exRow) return createResponseW("error", "Không tìm thấy mã đề: " + examCode);
+        // ===== CHECK THỜI GIAN MỞ / ĐÓNG =====
+const now = new Date();
+
+const openTime = exRow[12] instanceof Date 
+  ? exRow[12] 
+  : new Date(exRow[12]);
+
+const closeTime = exRow[11] instanceof Date 
+  ? exRow[11] 
+  : new Date(exRow[11]);
+
+        // --- BỔ SUNG: CHẶN SỐ LẦN THI ---
+        // Cột N là index 13. Lấy số lần thi tối đa cho phép.
+        const maxAttempts = parseInt(exRow[13], 10) || 1;
+        let exRowKq = [];
+
+        if (sheetKQ.getLastRow() > 1) {
+        exRowKq = sheetKQ.getRange(2,1,sheetKQ.getLastRow()-1,3).getValues();
+          }
+        const currentAttempts = exRowKq.filter(r => 
+      r[1].toString() === examCode && r[2].toString() === sbd
+    ).length;
+
+    if (sbd !== "8888") {       
+      if (openTime && now < openTime) {
+  return createResponseW("error", 
+    "⏳ Bài thi chưa mở. Thời gian mở: " +
+    Utilities.formatDate(openTime, "GMT+7", "yyyy/MM/dd HH:mm")
+  );
+}     
+
+if (closeTime && now > closeTime) {
+  return createResponseW("error", 
+    "⛔ Bài thi đã đóng lúc: " +
+    Utilities.formatDate(closeTime, "GMT+7", "yyyy/MM/dd HH:mm")
+  );
+}
+       if (currentAttempts >= maxAttempts) {
+        return createResponseW("error", `Bạn đã hết lượt thi! Mã đề ${examCode} chỉ cho phép thi tối đa ${maxAttempts} lần.`);
+      }
+    }
+        // chuẩn hóa
+        const toInt = (v, def = 0) => {
+          const n = parseInt(v?.toString().trim(), 10);
+          return isNaN(n) ? def : n;
+        };
+
+        const toFloat = (v, def = 0) => {
+          if (v === null || v === undefined) return def;
+          const s = v.toString().replace(",", ".");
+          const n = parseFloat(s);
+          return isNaN(n) ? def : n;
+        };
+
+        const toDateISO = (v) => {
+          if (v instanceof Date) {
+            return Utilities.formatDate(v, "GMT+7", "yyyy-MM-dd");
+          }
+          const s = v?.toString().trim();
+          return s || "";
+        };
+
+        // 2. Lấy câu hỏi - ĐOẠN ĐÃ TỐI ƯU
+        const allRows = sheetData.getDataRange().getValues();
+        const filteredQuestions = allRows.slice(1)
+          .filter(r => r[0].toString().trim() === examCode)
+          .map(r => {
+            let raw = r[4];
+            if (!raw) return null;
+
+            // Thay thế đoạn từ dòng 130 đến 135 bằng đoạn này:
+                let contentStr = raw.toString().trim();
+                    try {
+                        // Ưu tiên 1: Parse trực tiếp dữ liệu chuẩn
+                return JSON.parse(contentStr);
+                  } catch (e) {
+                  // Ưu tiên 2: Chỉ xử lý nếu JSON thực sự có vấn đề về dấu gạch chéo (Escape)
+                      try {
+                    // Chỉ nhân đôi dấu gạch chéo nếu cần thiết, không dùng Regex xóa ký tự ẩn
+                       let fixed = contentStr.replace(/\\/g, "\\\\").replace(/\\\\"/g, "\\\"");
+                      return JSON.parse(fixed);
+                        } catch (e2) {
+                        // Ưu tiên 3: Trả về object lỗi để không làm treo app
+                      return {
+                    type: "mcq",
+                      question: contentStr,
+                    id: r[1],
+              error: "Lỗi định dạng JSON"
+    };
+  }
+}
+          })
+          .filter(Boolean);
+
+        // 3. Trả về (Em bỏ qua bước trộn để test xem nó có lên đủ câu không đã)
+        return createResponseW("success", "OK", {
+          studentName: student[1],
+          studentClass: student[2],
+          duration: toInt(exRow[8], 33),
+          minSubmitTime: toInt(exRow[9], 0),     // minitime
+          maxTabSwitches: toInt(exRow[10], 3),        // tab limit
+          maxthi: maxAttempts,
+          deadline: Utilities.formatDate(closeTime, "GMT+7", "yyyy/MM/dd HH:mm"),
+          openTime: Utilities.formatDate(openTime, "GMT+7", "yyyy/MM/dd HH:mm"),
+          scoreMCQ: toFloat(exRow[3], 0),
+          scoreTF: toFloat(exRow[5], 0),
+          scoreSA: toFloat(exRow[7], 0),
+
+          questions: filteredQuestions // Gửi hết về xem có đủ không
+        });
+
+      } catch (error) {
+        return createResponseW("error", "Lỗi GAS: " + error.toString());
+      }
+    }
+  
 
 
     // 4. XÁC MINH GIÁO VIÊN (verifyGV)
