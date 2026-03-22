@@ -1489,10 +1489,7 @@ function createResponseW(status, message, data) {
   });
 
   return ContentService.createTextOutput(output)
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET, POST")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type");
+    .setMimeType(ContentService.MimeType.JSON);    
 }
 function createResponse(status, message, data) {
   var output = JSON.stringify({
@@ -1502,10 +1499,8 @@ function createResponse(status, message, data) {
   });
 
   return ContentService.createTextOutput(output)
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET, POST")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type");
+    .setMimeType(ContentService.MimeType.JSON);
+    
 }
 
 // Giữ lại resJSON để phục vụ các đoạn code cũ đang gọi tên này
