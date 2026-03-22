@@ -2,9 +2,9 @@
 
 function mainDoGet(e) { 
 
-  const params = e?.parameter || {};
-  const type = params.type; 
-  const action = params.action || e.parameter.action;
+ const params = e.parameter;
+  const type = params.type;
+  const action = params.action || e.parameter.action;  
   var mon = e.parameter.monId || e.parameter.mon || params.mon;
 
 if (!mon || mon === "undefined" || mon === "unknown") {     
