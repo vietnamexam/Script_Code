@@ -154,7 +154,7 @@ if (action === "checkAdminOTP") {
       const idInput = (params.idgv || "").toString().trim();
       if (!idInput) return createResponse("error", "Chưa nhập ID giáo viên");
 
-      const sheet = ss.getSheetByName("idgv");
+      const sheet = ssAdmin.getSheetByName("idgv");
       const data = sheet.getDataRange().getValues();
 
       for (let i = 1; i < data.length; i++) {
@@ -231,7 +231,7 @@ if (action === 'getAppConfigmt') {
    
    // Trong hàm doGet(e) của Google Apps Script
 if (action === "getRouting") {
-  const sheet = ss.getSheetByName("idgv");
+  const sheet = ssAdmin.getSheetByName("idgv");
   const rows = sheet.getDataRange().getValues();
   const data = [];
   for (var i = 1; i < rows.length; i++) {
@@ -739,7 +739,7 @@ if (closeTime && now > closeTime) {
 
     // 4. XÁC MINH GIÁO VIÊN (verifyGV)
     if (action === "verifyGV") {
-      var sheetGV = ss.getSheetByName("idgv");
+      var sheetGV = ssAdmin.getSheetByName("idgv");
       var rows = sheetGV.getDataRange().getValues();
       for (var i = 1; i < rows.length; i++) {
         if (rows[i][0].toString().trim() === data.idnumber.toString().trim() && rows[i][1].toString().trim() === data.password.toString().trim()) {
