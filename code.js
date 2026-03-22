@@ -1,7 +1,7 @@
 // --- FILE TỔNG TRÊN GITHUB ---
 
 function mainDoGet(e) { 
-
+ Logger.log("ssAdmin:", typeof ssAdmin);
  const params = e.parameter || {};
   const type = params.type || e.parameter.type;
   const action = params.action || e.parameter.action;
