@@ -1489,7 +1489,7 @@ function createResponseW(status, message, data) {
   });
 
   return ContentService.createTextOutput(output)
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
     .setHeader("Access-Control-Allow-Origin", "*")
     .setHeader("Access-Control-Allow-Methods", "GET, POST")
     .setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -1502,7 +1502,7 @@ function createResponse(status, message, data) {
   });
 
   return ContentService.createTextOutput(output)
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
     .setHeader("Access-Control-Allow-Origin", "*")
     .setHeader("Access-Control-Allow-Methods", "GET, POST")
     .setHeader("Access-Control-Allow-Headers", "Content-Type");
