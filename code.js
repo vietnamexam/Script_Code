@@ -286,7 +286,7 @@ function doGet(e) {
 
   // 9. LẤY TẤT CẢ CÂU HỎI (Hàm này thầy bị trùng, em gom lại bản chuẩn nhất)
   if (action === "getQuestions") {
-    var sheet = ssAdmin.getSheetByName("nganhang");
+    var sheet = ss.getSheetByName("nganhang");
     var lastRow = sheet.getLastRow();
     var rows = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
     var questions = [];
