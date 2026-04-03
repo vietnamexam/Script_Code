@@ -1,35 +1,310 @@
 // --- FILE TỔNG TRÊN GITHUB ---
 
-function mainDoGet(e) { 
- Logger.log("ssAdmin:", typeof ssAdmin);
- const params = e.parameter || {};
-  const type = params.type || e.parameter.type;
-  const action = params.action || e.parameter.action;
-  const mon = e.parameter.mon || "chung";
-  if (action === "checkAdminOTP") {
-    const userOTP = (params.otp || "").trim();
-    const inputIDGV = (params.idgv || "").trim().toLowerCase();
-
-    // Kiểm tra IDGV (Giữ nguyên logic cũ của bạn)
-    const idgvSheet = ssAdmin.getSheetByName("idgv");
-    const dataIDGV = idgvSheet.getRange("A:A").getValues().flat();
-    const isIdValid = dataIDGV.some(id => String(id).trim().toLowerCase() === inputIDGV);
-
-    if (!isIdValid) return createResponse("error", "ID Giáo viên không tồn tại!");
-
-    // Kiểm tra OTP và lấy tên môn
-    const assignedMon = MAP_MON[userOTP];
-
-    if (assignedMon) {
-      return createResponse("success", "Xác minh thành công", {
-        verified: true,
-        mon: assignedMon // Gửi về cho React: "toan", "ly",...
-      });
-    } else {
-      return createResponse("error", "Mật khẩu Admin không đúng!");
+function mainDoGet(e) {
+   
+//#01
+  const mockEvent = {
+    parameter: {
+      id: "601.1", // Giả lập ID lớp 6, dạng 01, mức 1
+      action: "view"
     }
+  };
+  doGet(mockEvent);
+}
+
+function doGet(e) {
+  // Thêm dòng kiểm tra an toàn (Guard Clause)
+  if (!e || !e.parameter) {
+    Logger.log("Chưa có tham số truyền vào!");
+    return ContentService.createTextOutput("Vui lòng truy cập qua URL Web App.");
   }
-  //= TÌM CÂU HỎI LẺ
+
+  const params = e.parameter;
+  const type = params.type;
+  const action = params.action || e.parameter.action;
+  // Xác minh và đăng nhập Game Show
+  if (action === "registershow") {
+    return register(e);
+  }
+  if (action === "loginshow") {
+    return login(e);
+  }
+  if (action === "adminLoginshow") {
+  return adminLogin(e);
+  }
+  if (action === "getUsersshow") {
+    return getUsers(e);
+  }
+  if (action === "updatePassword") {
+  return updatePassword(e);
+}
+  if (action === "getTeachers") {
+  return getTeachers();
+}
+
+
+   // Xác minh bên VBA
+ if (action === "getIdGV") {
+  const sheet = ssAdmin.getSheetByName("idgv");
+  const data = sheet.getRange("A2:A" + sheet.getLastRow()).getValues().flat();
+  
+  // Lọc bỏ ô trống và chuyển về chữ thường
+  const cleanData = data.filter(String).map(id => id.toString().toLowerCase().trim());
+  
+  // Trả về chuỗi thuần túy: "gv100,gv101,admin22"
+  return ContentService.createTextOutput(cleanData.join(",")).setMimeType(ContentService.MimeType.TEXT);
+}
+  if (action === "checkAdminOTP") {
+    var userOTP = e.parameter.otp;
+    var isCorrect = (userOTP === passAdmin);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      verified: isCorrect
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Nếu đăng nhập đúng và yêu cầu lấy app
+  if (action === "getAdminApps") {
+    const inputID = e.parameter.id;
+    const inputPass = e.parameter.pass;
+    // Kiểm tra đăng nhập
+    if (inputID !== idadmin || inputPass !== passAdmin) {
+      return createResponse({ success: false, message: "Sai ID hoặc mật khẩu!" });
+    }
+    const sheet = ssAdmin.getSheetByName("idgv");
+    const lastRow = sheet.getLastRow();
+
+    if (lastRow < 2) return createResponse([]);
+
+    const data = sheet.getRange("E2:G" + lastRow).getValues();
+
+    const adminApps = data
+      .filter(row => row[0].toString().trim() !== "")
+      .map(row => ({
+        name: row[0],
+        icon: row[1] || "fas fa-external-link-alt",
+        link: row[2]
+      }));
+
+    return createResponse({ success: true, data: adminApps });
+  }
+  // 4. KIỂM TRA GIÁO VIÊN (Dành cho Module Giáo viên tạo đề word)
+
+  // Trong hàm doGet(e) của Google Apps Script
+  if (action === "getRouting") {
+    const sheet = ssAdmin.getSheetByName("idgv");
+    const rows = sheet.getDataRange().getValues();
+    const data = [];
+    for (var i = 1; i < rows.length; i++) {
+      data.push({
+        idNumber: rows[i][0], // Cột A
+        link: rows[i][2]      // Cột C
+      });
+    }
+    return createResponse("success", "OK", data);
+  }
+// 1. ĐĂNG KÝ / ĐĂNG NHẬP
+  var sheetAcc = ssAdmin.getSheetByName("account");
+  if (action === "register") {
+    var phone = params.phone;
+    var pass = params.pass;
+    var rows = sheetAcc.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][1].toString() === phone) return ContentService.createTextOutput("exists");
+    }
+    sheetAcc.appendRow([new Date(), "'" + phone, pass, "VIP0"]);
+    return ContentService.createTextOutput("success");
+  }
+
+  if (action === "login") {
+    var phone = params.phone;
+    var pass = params.pass;
+    var rows = sheetAcc.getDataRange().getValues();
+
+    for (var i = 1; i < rows.length; i++) {
+      // Kiểm tra số điện thoại (cột B) và mật khẩu (cột C)
+      if (rows[i][1].toString() === phone && rows[i][2].toString() === pass) {
+
+        return createResponse("success", "OK", {
+          phoneNumber: rows[i][1].toString(),
+          vip: rows[i][3] ? rows[i][3].toString() : "VIP0",
+          name: rows[i][4] ? rows[i][4].toString() : "" // Lấy thêm cột E (tên người dùng)
+        });
+      }
+    }
+    return ContentService.createTextOutput("fail");
+  }
+  // 5. LẤY MẬT KHẨU QUIZ
+  if (type === 'getPass') {
+
+    const password = passAdmin;
+    return resJSON({ password: password.toString() });
+  }
+
+   // 6. XÁC MINH THÍ SINH
+  if (type === 'verifyStudent') {
+    const idNumber = params.idnumber;
+    const sbd = params.sbd;
+    const sheet = ss.getSheetByName("danhsach");
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) {
+    return createResponse("error", "Danh sách thí sinh trống!");
+      }    
+    for (let i = 1; i < data.length; i++) {
+      if ((data[i][0] || "").toString().trim() === sbd.toString().trim() && data[i][5].toString().trim() === idNumber.toString().trim()) {
+        return createResponse("success", "OK", {
+          name: data[i][1], 
+          class: data[i][2], 
+          limit: data[i][3],
+          limittab: data[i][4], 
+          taikhoanapp: data[i][6], 
+          idnumber: idNumber, 
+          sbd: sbd
+        });
+         break; 
+      }
+    }
+    return createResponse("error", "Thí sinh không tồn tại!");
+  }
+
+// Khu vực ma trận #02
+    // load ngân hàng đề
+  if (action === 'loadQuestions') {
+
+    var values = sheetNH.getDataRange().getValues();
+    if (values.length <= 1) {
+      return createResponse("success", "Không có dữ liệu", []);
+    }
+
+    var headers = values[0];
+    var rows = values.slice(1);
+
+    var result = rows.map(function (r) {
+
+      var obj = {
+        id: r[0],
+        classTag: r[1],
+        type: r[2],
+        part: r[3],
+        question: r[4]
+      };
+
+      if (r[2] === "mcq") {
+        obj.o = r[5] ? JSON.parse(r[5]) : [];
+        obj.a = r[6];
+      }
+
+      if (r[2] === "true-false") {
+        obj.s = r[5] ? JSON.parse(r[5]) : [];
+      }
+
+      if (r[2] === "short-answer") {
+        obj.a = r[6];
+      }
+
+      return obj;
+    });
+
+    return createResponse("success", "Load thành công", result);
+  }
+//=========== Tìm lời giải ========================
+  if (action === 'getLG') {
+    var idTraCuu = params.id;
+    if (!idTraCuu) return ContentService.createTextOutput("Thiếu ID rồi!").setMimeType(ContentService.MimeType.TEXT);
+
+    var data = sheetNH.getDataRange().getValues();
+
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0].toString().trim() === idTraCuu.toString().trim()) {
+        var loigiai = data[i][7] || "";
+
+        // Ép kiểu về String để đảm bảo không bị lỗi tệp
+        return ContentService.createTextOutput(String(loigiai))
+          .setMimeType(ContentService.MimeType.TEXT);
+      }
+    }
+    return ContentService.createTextOutput("Không tìm thấy ID này!").setMimeType(ContentService.MimeType.TEXT);
+  }
+
+  // SỬ LÝ CÂU TRÙNG
+  if (action == 'findDuplicateQuestions') {
+    return ContentService.createTextOutput(JSON.stringify(findDuplicateQuestions()))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action == 'deleteQuestionRow') {
+    var rowIdx = e.parameter.rowIdx;
+    return ContentService.createTextOutput(JSON.stringify(deleteQuestionRow(rowIdx)))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  // -----------------------
+  // 7. LẤY CÂU HỎI THEO ID
+  if (action === 'getQuestionById') {
+    var id = params.id;
+    var dataNH = sheetNH.getDataRange().getValues();
+    for (var i = 1; i < dataNH.length; i++) {
+      if (dataNH[i][0].toString() === id.toString()) {
+        return createResponse("success", "OK", {
+          idquestion: dataNH[i][0],
+          classTag: dataNH[i][1],
+          question: dataNH[i][4],
+          options: dataNH[i][5],
+          answer: dataNH[i][6],
+          loigiai: dataNH[i][7],
+          datetime: dataNH[i][8]
+        });
+      }
+    }
+    return resJSON({ status: 'error' });
+  }
+
+  // 8. LẤY MA TRẬN ĐỀ
+  if (type === 'getExamCodes') {
+    const teacherId = params.idnumber;
+    const sheet = ss.getSheetByName("matran");
+    const data = sheet.getDataRange().getValues();
+    const results = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (row[0].toString().trim() === teacherId.trim() || row[0].toString() === "SYSTEM") {
+        try {
+          results.push({
+            code: row[1].toString(), name: row[2].toString(), topics: JSON.parse(row[3]),
+            fixedConfig: {
+              duration: parseInt(row[4]), numMC: JSON.parse(row[5]), scoreMC: parseFloat(row[6]),
+              mcL3: JSON.parse(row[7]), mcL4: JSON.parse(row[8]), numTF: JSON.parse(row[9]),
+              scoreTF: parseFloat(row[10]), tfL3: JSON.parse(row[11]), tfL4: JSON.parse(row[12]),
+              numSA: JSON.parse(row[13]), scoreSA: parseFloat(row[14]), saL3: JSON.parse(row[15]), saL4: JSON.parse(row[16])
+            }
+          });
+        } catch (err) { }
+      }
+    }
+    return createResponse("success", "OK", results);
+  }
+
+  // 9. LẤY TẤT CẢ CÂU HỎI (Hàm này thầy bị trùng, em gom lại bản chuẩn nhất)
+  if (action === "getQuestions") {
+    var sheet = ssAdmin.getSheetByName("nganhang");
+    var lastRow = sheet.getLastRow();
+    var rows = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
+    var questions = [];
+    for (var i = 1; i < rows.length; i++) {
+      var raw = rows[i][2];
+      if (!raw) continue;
+      try {
+        var jsonText = raw.replace(/(\w+)\s*:/g, '"$1":').replace(/'/g, '"');
+        var obj = JSON.parse(jsonText);
+        if (!obj.classTag) obj.classTag = rows[i][1];
+        obj.loigiai = rows[i][4] || "";
+        questions.push(obj);
+      } catch (e) { }
+    }
+    return createResponse("success", "OK", questions);
+  }
+// Khu vực thi lẻ #03
+//= TÌM CÂU HỎI LẺ
   if (action === "getSingleQuestion") {
 
     const sheet = ss.getSheetByName("exam_data");
@@ -63,73 +338,6 @@ function mainDoGet(e) {
 
     return createResponse("error", "Không tìm thấy câu hỏi");
   }
-  // load ngân hàng đề
-  if (action === "loadQuestions") {     
-    var sheetNH = getsheetname(mon); 
-    var values = sheetNH.getDataRange().getValues();
-    if (values.length <= 1) {
-      return createResponse("success", "Không có dữ liệu", []);
-    }
-    var rows = values.slice(1);
-
-    var result = rows.map(function (r) {
-
-      var obj = {
-        id: r[0],
-        classTag: r[1],
-        type: r[2],
-        part: r[3],
-        question: r[4]
-      };
-
-      if (r[2] === "mcq") {
-        obj.o = r[5] ? JSON.parse(r[5]) : [];
-        obj.a = r[6];
-      }
-
-      if (r[2] === "true-false") {
-        obj.s = r[5] ? JSON.parse(r[5]) : [];
-      }
-
-      if (r[2] === "short-answer") {
-        obj.a = r[6];
-      }
-
-      return obj;
-    });
-
-    return createResponse("success", "Load thành công", result);
-  }
-
-
-  // Reset QuiZ
-  if (action === "resetQuiz") {
-  return resetQuizData(e.parameter.password);
-}
-
-
-
-  // ===== LẤY LIST EXAMS =====
-  if (action === "getExamsList") {
-    return getExamsList(e.parameter.type);
-  }
-
-  // ===== RESET DATA =====
-  if (action === "resetData") {
-    return resetData(
-      e.parameter.type,
-      e.parameter.password,
-      e.parameter.mode,
-      e.parameter.exams
-    );
-  }
-
-  // xem điểm
-  if (action === "getScore") {
-    return getScore(e);
-  }
-
-  // Thêm vào trong function doGet(e)
   if (action === 'getQuestionsByCode') {
     const examCode = params.examCode;
     const sheet = ss.getSheetByName("exam_data");
@@ -151,125 +359,46 @@ function mainDoGet(e) {
     }
     return createResponse("success", "OK", results);
   }
-  //=========== Tìm lời giải ========================
-  if (action === 'getLG') {
-    var idTraCuu = params.id;    
-    var targetSheet = getsheetname(mon);
-    if (!idTraCuu) return ContentService.createTextOutput("Thiếu ID rồi!").setMimeType(ContentService.MimeType.TEXT);
-
-    var data = targetSheet.getDataRange().getValues();
-
-    for (var i = 1; i < data.length; i++) {
-      if (data[i][0].toString().trim() === idTraCuu.toString().trim()) {
-        var loigiai = data[i][7] || "";
-
-        // Ép kiểu về String để đảm bảo không bị lỗi tệp
-        return ContentService.createTextOutput(String(loigiai))
-          .setMimeType(ContentService.MimeType.TEXT);
-      }
-    }
-    return ContentService.createTextOutput("Không tìm thấy ID này!").setMimeType(ContentService.MimeType.TEXT);
-  }
-   if (action === 'updateLG') {
-  var sheetNH = getsheetname(mon);
-  var data = JSON.parse(e.postData.contents);
-  var id = data.id;
-  var lg = data.loigiai;
-
-  var values = sheetNH.getDataRange().getValues();
-
-  for (var i = 1; i < values.length; i++) {
-    if (values[i][0] == id) {
-      sheetNH.getRange(i + 1, 8).setValue(lg); // cột loigiai
-      break;
-    }
+// Khu vực chung #04
+  // ===== LẤY LIST EXAMS =====
+  if (action === "getExamsList") {
+    return getExamsList(e.parameter.type);
   }
 
-  return createResponse("success", "Đã cập nhật lời giải!");
-}
+  // ===== RESET DATA =====
+  if (action === "resetData") {
+    return resetData(
+      e.parameter.type,
+      e.parameter.password,
+      e.parameter.mode,
+      e.parameter.exams
+    );
+  }
 
+  // xem điểm
+  if (action === "getScore") {
+    return getScore(e);
+  }
 
-
-  // lấy dạng câu hỏi
+    // lấy dạng câu hỏi
   if (action === 'getAppConfig') {
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       data: getAppConfig()
     })).setMimeType(ContentService.MimeType.JSON);
   }
-// THÊM NHÁNH NÀY CHO MA TRẬN
-if (action === 'getAppConfigmt') {
-  return ContentService.createTextOutput(JSON.stringify({
-    status: "success",
-    data: getAppConfigmt()
-  })).setMimeType(ContentService.MimeType.JSON);
-}
 
-  // 4. KIỂM TRA GIÁO VIÊN (Dành cho Module Giáo viên tạo đề word)
-
-
-  // Trong hàm doGet(e) của Google Apps Script
-  if (action === "getRouting") {
-    const sheet = ssAdmin.getSheetByName("idgv");
-    const rows = sheet.getDataRange().getValues();
-    const data = [];
-    for (var i = 1; i < rows.length; i++) {
-      data.push({
-        idNumber: rows[i][0], // Cột A
-        link: rows[i][2]      // Cột C
-      });
-    }
-    return createResponse("success", "OK", data);
-  }
-  // SỬ LÝ CÂU TRÙNG
-  if (action == 'findDuplicateQuestions') {
-    return ContentService.createTextOutput(JSON.stringify(findDuplicateQuestions(mon)))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  if (action == 'deleteQuestionRow') {
-    var rowIdx = e.parameter.rowIdx;
-    return ContentService.createTextOutput(JSON.stringify(deleteQuestionRow(rowIdx, mon)))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  // -----------------------
-
-
-  // 1. ĐĂNG KÝ / ĐĂNG NHẬP
-  var sheetAcc = ssAdmin.getSheetByName("account");
-  if (action === "register") {
-    var phone = params.phone;
-    var pass = params.pass;
-    var rows = sheetAcc.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      if (rows[i][1].toString() === phone) return ContentService.createTextOutput("exists");
-    }
-    sheetAcc.appendRow([new Date(), "'" + phone, pass, "VIP0"]);
-    return ContentService.createTextOutput("success");
-  }
-
-  if (action === "login") {
-    var phone = params.phone;
-    var pass = params.pass;
-    var rows = sheetAcc.getDataRange().getValues();
-
-    for (var i = 1; i < rows.length; i++) {
-      // Kiểm tra số điện thoại (cột B) và mật khẩu (cột C)
-      if (rows[i][1].toString() === phone && rows[i][2].toString() === pass) {
-
-        return createResponse("success", "OK", {
-          phoneNumber: rows[i][1].toString(),
-          vip: rows[i][3] ? rows[i][3].toString() : "VIP0",
-          name: rows[i][4] ? rows[i][4].toString() : "" // Lấy thêm cột E (tên người dùng)
-        });
-      }
-    }
-    return ContentService.createTextOutput("fail");
+  // THÊM NHÁNH NÀY CHO MA TRẬN
+  if (action === 'getAppConfigmt') {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "success",
+      data: getAppConfigmt()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 
   // 2. LẤY DANH SÁCH ỨNG DỤNG
   if (params.sheet === "ungdung") {
-    var sheet = ss.getSheetByName("ungdung");
+    var sheet = ssAdmin.getSheetByName("ungdung");
     var rows = sheet.getDataRange().getValues();
     var data = [];
     for (var i = 1; i < rows.length; i++) {
@@ -280,7 +409,7 @@ if (action === 'getAppConfigmt') {
 
   // 3. TOP 10
   if (type === 'top10') {
-    const sheet = ss.getSheetByName("Top10Display");
+    const sheet = ssAdmin.getSheetByName("Top10Display");
     if (!sheet) return createResponse("error", "Không tìm thấy sheet Top10Display");
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return createResponse("success", "Chưa có dữ liệu Top 10", []);
@@ -305,132 +434,98 @@ if (action === 'getAppConfigmt') {
     }
     return createResponse("success", "OK", stats);
   }
-
-  // 5. LẤY MẬT KHẨU QUIZ
-  if (type === 'getPass') {
-
-    const password = passAdmin;
-    return resJSON({ password: password.toString() });
-  }
-
-  // 6. XÁC MINH THÍ SINH
-  if (type === 'verifyStudent') {
-    const idNumber = params.idnumber;
-    const sbd = params.sbd;
-    const sheet = ss.getSheetByName("danhsach");
-    const data = sheet.getDataRange().getValues();
-    if (data.length < 2) {
-      return createResponse("error", "Danh sách thí sinh trống!");
-    }
-    const idgvFixed = data[1][5].toString().trim()
-    if (idgvFixed !== idNumber.trim()) {
-      return createResponse("error", "Sai IDGV!");
-    }
-    for (let i = 1; i < data.length; i++) {
-      if ((data[i][0] || "").toString().trim() === sbd.trim()) {
-        return createResponse("success", "OK", {
-          name: data[i][1], class: data[i][2], limit: data[i][3],
-          limittab: data[i][4], taikhoanapp: data[i][6], idnumber: idNumber, sbd: sbd
-        });
-      }
-    }
-    return createResponse("error", "Thí sinh không tồn tại!");
-  }
-
-   // 7. LẤY CÂU HỎI THEO ID
-  if (action === 'getQuestionById') {
-    var id = params.id;
     
-      Logger.log("MON NHẬN: " + mon);
 
-      var sheetNH = getsheetname(mon);
-
-      Logger.log("SHEET ĐỌC: " + sheet.getName());
-    var dataNH = sheetNH.getDataRange().getValues();
-    for (var i = 1; i < dataNH.length; i++) {
-      if (dataNH[i][0].toString() === id.toString()) {
-        return createResponse("success", "OK", {
-          idquestion: dataNH[i][0],
-          classTag: dataNH[i][1],
-          question: dataNH[i][4],
-          options: dataNH[i][5],
-          answer: dataNH[i][6],
-          loigiai: dataNH[i][7],
-          datetime: dataNH[i][8]
-        });
-      }
-    }
-    return resJSON({ status: 'error' });
-  }
-
-  // 8. LẤY MA TRẬN ĐỀ
-  if (type === 'getExamCodes') {
-    const teacherId = params.idnumber;
-    const sheet = ss.getSheetByName("matran");
-    const data = sheet.getDataRange().getValues();
-    const results = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const owner = row[0].toString().trim().toUpperCase();
-      const tid = teacherId.trim().toUpperCase();
-
-      if (owner === tid || owner === "SYSTEM") {
-        try {
-          results.push({
-            code: row[1].toString().trim().replace(/^'/, ""), name: row[2].toString(), topics: JSON.parse(row[3]),
-            fixedConfig: {
-              duration: parseInt(row[4]), numMC: JSON.parse(row[5]), scoreMC: parseFloat(row[6]),
-              mcL3: JSON.parse(row[7]), mcL4: JSON.parse(row[8]), numTF: JSON.parse(row[9]),
-              scoreTF: parseFloat(row[10]), tfL3: JSON.parse(row[11]), tfL4: JSON.parse(row[12]),
-              numSA: JSON.parse(row[13]), scoreSA: parseFloat(row[14]), saL3: JSON.parse(row[15]), saL4: JSON.parse(row[16])
-            }
-          });
-        } catch (err) { }
-      }
-    }
-    return createResponse("success", "OK", results);
-  }
-
-  // 9. LẤY TẤT CẢ CÂU HỎI (Hàm này thầy bị trùng, em gom lại bản chuẩn nhất)
-  if (action === "getQuestions") {
-    var sheet = getsheetname(mon);
-    if (!sheet) {
-  return createResponse("error", "Không tìm thấy sheet môn: " + mon, []);
-}
-    var lastRow = sheet.getLastRow();
-    var rows = sheet.getRange(2,1,lastRow-1,9).getValues();
-    var questions = [];
-    for (var i = 0; i < rows.length; i++) {
-      var raw = rows[i][2];
-      if (!raw) continue;
-      try {
-        var jsonText = raw.replace(/(\w+)\s*:/g, '"$1":').replace(/'/g, '"');
-        var obj = JSON.parse(jsonText);
-        if (!obj.classTag) obj.classTag = rows[i][1];
-        obj.loigiai = rows[i][4] || "";
-        questions.push(obj);
-      } catch (e) { }
-    }
-    return createResponse("success", "OK", questions);
-  }
+// cuối doget
 
   return createResponse("error", "Yêu cầu không hợp lệ");
 }
-// =====================================================================================================================Hết Doget =======================================
+    
 function mainDoPost(e) {
+// Khu vực xác minh #05
   const lock = LockService.getScriptLock();
   lock.tryLock(15000);
   try {
-    const data = JSON.parse(e.postData.contents || "{}");
-    const params = e.parameter || {};
-    const action = params.action || e.parameter.action;
-    const mon = e.parameter.mon || "chung";
+    let data = {};
+    if (e.postData && e.postData.type === "application/json") {
+      data = JSON.parse(e.postData.contents);    }
+   
+    const action = (data.action || e.parameter.action || JSON.parse(e.postData.contents).action || "").toString(); // mới thêm
+     // mới thêm đăng nhập giáo viên, học sinh
+     if (action === "registerTeacher") {
+    var sheet = ssAdmin.getSheetByName("idgv");
+    sheet.appendRow([data.idgv, data.fullname, data.pass, data.subject]);
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  if (action === "loginTeacher") {
+    var sheet = ssAdmin.getSheetByName("idgv");
+    var values = sheet.getDataRange().getValues();
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][0] == data.idgv && values[i][2] == data.pass) {
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: true, 
+          user: { idgv: values[i][0], fullname: values[i][1], subject: values[i][3] } 
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "Sai tài khoản hoặc mật khẩu" })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  if (action === "loginStudent") {
+    var sheet = ss.getSheetByName("danhsach");
+    var values = sheet.getDataRange().getValues();
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][0] == data.sbd && values[i][5] == data.idgv) {
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: true, 
+          student: { sbd: values[i][0], name: values[i][1], class: values[i][2], idgv: values[i][5] } 
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: "Sai SBD hoặc IDGV" })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  if (action === "uploadStudents") {
+    var sheet = ss.getSheetByName("danhsach");
+    data.students.forEach(function(student) {
+      sheet.appendRow([student.sbd, student.name, student.class, student.limit, student.limittab, student.idgv, student.taikhoanapp]);
+    });
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "deleteStudent") {
+    var sheet = ss.getSheetByName("danhsach");
+    var values = sheet.getDataRange().getValues();
+    for (var i = values.length - 1; i >= 1; i--) {
+      if (values[i][0] == data.sbd && values[i][5] == data.idgv) {
+        sheet.deleteRow(i + 1);
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "changePassword") {
+    var sheet = ssAdmin.getSheetByName("idgv");
+    var values = sheet.getDataRange().getValues();
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][0] == data.idgv) {
+        sheet.getRange(i + 1, 3).setValue(data.newPass);
+        return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+     // kết thúc mới thêm
 
     const res = (status, message, payload) =>
       ContentService.createTextOutput(
         JSON.stringify({ status, message, data: payload || null })
       ).setMimeType(ContentService.MimeType.JSON);
 
+      // Edit giáo viên gameshow
+      if (action === "updateTeacher") {
+  return updateTeacher(e);
+}
 
 
     // 2. Nếu sau này thầy gửi dữ liệu đăng ký (có pass, phone...)
@@ -439,10 +534,166 @@ function mainDoPost(e) {
       sheetUser.appendRow([new Date(), data.phone, data.pass]);
       return ContentService.createTextOutput("Đã đăng ký thành công");
     }
+    // 4. XÁC MINH GIÁO VIÊN (verifyGV)
+    if (action === "verifyGV") {
+      var sheetGV = ss.getSheetByName("idgv");
+      var rows = sheetGV.getDataRange().getValues();
+      for (var i = 1; i < rows.length; i++) {
+        if (rows[i][0].toString().trim() === data.idnumber.toString().trim() && rows[i][1].toString().trim() === data.password.toString().trim()) {
+          return resJSON({ status: "success" });
+        }
+      }
+      return resJSON({ status: "error", message: "ID hoặc Mật khẩu GV không đúng!" });
+    }
 
+    // 6. XÁC MINH ADMIN (verifyAdmin)
+    if (action === "verifyAdmin") {
+      if (data.password.toString().trim() === passAdmin) return resJSON({ status: "success", message: "Chào Admin!" });
+      return resJSON({ status: "error", message: "Sai mật khẩu!" });
+    }
+// Khu vực ma trận #06
+    // 1. NHÁNH LỜI GIẢI (saveLG)
+    if (action === 'saveLG') {
+      var lastRow = sheetNH.getLastRow();
 
-    // Ghi kết quả thi lẻ
-  // Ghi kết quả thi lẻ
+      if (lastRow < 2) return ContentService.createTextOutput("⚠️ Sheet rỗng, chưa có ID để khớp thầy ơi!").setMimeType(ContentService.MimeType.TEXT);
+
+      // 1. Tìm ô trống đầu tiên ở cột E
+      var eValues = sheetNH.getRange(1, 8, lastRow, 1).getValues();
+      var firstEmptyRow = 0;
+      for (var i = 1; i < eValues.length; i++) {
+        if (!eValues[i][0] || eValues[i][0].toString().trim() === "") {
+          firstEmptyRow = i + 1;
+          break;
+        }
+      }
+      if (firstEmptyRow === 0) firstEmptyRow = lastRow + 1;
+
+      // 2. Điền LG và ép ID theo cột A
+      var count = 0;
+      data.forEach(function (item, index) {
+        var targetRow = firstEmptyRow + index;
+
+        // Lấy ID "xịn" đang nằm ở cột A của hàng này
+        var realId = sheetNH.getRange(targetRow, 1).getValue().toString();
+
+        if (realId) {
+          var rawLG = item.loigiai || item.lg || "";
+
+          // Dùng Regex để tìm "id: ..." hoặc "id:..." và thay bằng ID xịn từ cột A
+          // Đoạn này xử lý cả trường hợp có ngoặc kép hoặc không
+          var fixedLG = rawLG.replace(/id\s*:\s*["']?[^"'\s]+["']?/g, 'id: "' + realId + '"');
+
+          // Ghi vào cột E
+          sheetNH.getRange(targetRow, 8).setValue(fixedLG);
+          count++;
+        }
+      });
+      sheetNH.getRange("D:H").setWrap(true);
+
+      // Tự chỉnh chiều cao từ dòng 2 trở xuống
+      if (lastRow > 1) {
+        sheetNH.autoResizeRows(2, lastRow - 1);
+      }
+
+      return ContentService.createTextOutput("🚀 Đã xong! Điền tiếp " + count + " lời giải. ID trong LG đã được đồng bộ theo ID câu hỏi.").setMimeType(ContentService.MimeType.TEXT);
+    }
+    // 2. NHÁNH MA TRẬN (saveMatrix)
+    if (action === "saveMatrix") {
+      const sheetMatran = ss.getSheetByName("matran") || ss.insertSheet("matran");
+      const toStr = (v) => (v != null) ? String(v).trim() : "";
+      const toNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+      const toJson = (v) => {
+        if (!v || v === "" || (Array.isArray(v) && v.length === 0)) return "[]";
+        if (typeof v === 'object') return JSON.stringify(v);
+        let s = String(v).trim();
+        return s.startsWith("[") ? s : "[" + s + "]";
+      };
+      const rowData = [
+        toStr(data.gvId), toStr(data.makiemtra), toStr(data.name), toJson(data.topics),
+        toNum(data.duration), toJson(data.numMC), toNum(data.scoreMC), toJson(data.mcL3),
+        toJson(data.mcL4), toJson(data.numTF), toNum(data.scoreTF), toJson(data.tfL3),
+        toJson(data.tfL4), toJson(data.numSA), toNum(data.scoreSA), toJson(data.saL3), toJson(data.saL4)
+      ];
+      const vals = sheetMatran.getDataRange().getValues();
+      let rowIndex = -1;
+      for (let i = 1; i < vals.length; i++) {
+        if (vals[i][0].toString() === toStr(data.gvId) && vals[i][1].toString() === toStr(data.makiemtra)) {
+          rowIndex = i + 1; break;
+        }
+      }
+      if (rowIndex > 0) { sheetMatran.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]); }
+      else { sheetMatran.appendRow(rowData); }
+      return createResponse("success", "✅ Đã tạo ma trận " + data.makiemtra + " thành công!");
+    }
+
+    // 3. NHÁNH LƯU CÂU HỎI MỚI (saveQuestions)
+    if (action === 'saveQuestions') {
+
+      var now = new Date();
+
+      var startRow = sheetNH.getLastRow() + 1;
+
+      var rows = data.map(function (item) {
+        return [
+          item.id,
+          item.classTag,
+          item.type,
+          item.part,
+          item.question,
+          item.options || "",
+          item.answer || "",
+          item.loigiai || "",
+          now
+        ];
+      });
+
+      if (rows.length > 0) {
+        sheetNH.getRange(startRow, 1, rows.length, rows[0].length)
+          .setValues(rows);
+      }
+      var lastRow = sheetNH.getLastRow();
+      sheetNH.getRange("D:H").setWrap(true);
+
+      // Tự chỉnh chiều cao từ dòng 2 trở xuống
+      if (lastRow > 1) {
+        sheetNH.autoResizeRows(2, lastRow - 1);
+      }
+
+      return createResponse("success", "Đã lưu " + rows.length + " câu hỏi thành công!");
+    }
+    // 5. CẬP NHẬT CÂU HỎI (updateQuestion)
+    if (action === 'updateQuestion') {
+      var item = data.data;
+      var allRows = sheetNH.getDataRange().getValues();
+
+      // Kiểm tra ID từ client gửi lên có bị trống không
+      var targetId = item.id || item.idquestion;
+      if (!targetId) return resJSON({ status: 'error', message: 'ID gửi lên bị trống!' });
+
+      for (var i = 1; i < allRows.length; i++) {
+        // CHỐT CHẶN: Nếu ô ID trong Sheet bị trống thì bỏ qua, không so sánh
+        if (allRows[i][0] === "" || allRows[i][0] === null || typeof allRows[i][0] === 'undefined') {
+          continue;
+        }
+
+        // So sánh an toàn sau khi đã chắc chắn ô đó có dữ liệu
+        if (allRows[i][0].toString() === targetId.toString()) {
+          // Ghi dữ liệu vào các cột tương ứng (Cột 2: classTag, 5: Question...)
+          sheetNH.getRange(i + 1, 2).setValue(item.classTag || "");
+          sheetNH.getRange(i + 1, 5).setValue(item.question || "");
+          sheetNH.getRange(i + 1, 6).setValue(item.options || "");
+          sheetNH.getRange(i + 1, 7).setValue(item.answer || "");
+          sheetNH.getRange(i + 1, 8).setValue(item.loigiai || "");
+          sheetNH.getRange(i + 1, 9).setValue(new Date().toLocaleString('vi-VN'));
+
+          return resJSON({ status: 'success' });
+        }
+      }
+      return resJSON({ status: 'error', message: 'Không tìm thấy ID: ' + targetId });
+    }
+// Khu vực thi lẻ #07
+// Ghi kết quả thi lẻ
     if (data.action === "submitExam") {
       try {
 
@@ -453,14 +704,15 @@ function mainDoPost(e) {
         const sheetKq = ss.getSheetByName("ketqua") || sheetExams;
 
         sheetKq.appendRow([
-          data.timestamp,                                // Cột A
+          data.timestamp,                                // Cột A         
           data.examCode || data.exams || "",             // Cột B: Nhận cả 2 tên biến
           data.sbd || "",                                // Cột C
           data.name || "",                               // Cột D
           data.className || data.class || "",            // Cột E: Nhận cả 2 tên biến
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
-          data.details || ""                             // Cột H
+          "'" + data.idgv || "",                                      // Cột H
+          data.details || ""                             
         ]);
 
         return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
@@ -470,7 +722,8 @@ function mainDoPost(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
     }
-   // trộn đề
+    // =================================================================== TRỘN ĐỀ ===========================================
+
     if (action === "studentGetExam") {
       try {
         const sbd = data.sbd ? data.sbd.toString().trim() : "";
@@ -481,63 +734,74 @@ function mainDoPost(e) {
         const sheetData = ss.getSheetByName("exam_data");
         const sheetExam = ss.getSheetByName("exams");
         const sheetKQ = ss.getSheetByName("ketqua"); // Bảng lưu kết quả thi
-        const allDataDS = sheetDS.getDataRange().getValues();
-        const idgvFixed = allDataDS[1] ? allDataDS[1][5].toString().trim() : "";
+        const dataDS = sheetDS.getDataRange().getValues();        
+        if (dataDS.length < 2) {
+          return createResponse("error", "Danh sách thí sinh trống!");
+      }    
 
-        // 1. Check học sinh & Cấu hình đề (Thầy giữ logic cũ nhưng dùng .trim() cho chắc)
-        const student = allDataDS.find(r => r[0].toString() === sbd && idgvFixed === idgv.toString().trim());
-        if (!student) return createResponseW("error", "SBD hoặc IDGV không đúng!");
+       // 1. Tìm học sinh bằng vòng lặp (An toàn và nhanh nhất)
+var student = null;
+for (var i = 1; i < dataDS.length; i++) {
+  var rowSBD = (dataDS[i][0] || "").toString().trim();
+  var rowIDGV = (dataDS[i][5] || "").toString().trim();
+  
+  // So sánh chuẩn cả 2 điều kiện
+  if (rowSBD === sbd.toString().trim() && rowIDGV === idgv) {
+    student = dataDS[i];
+    break; // Tìm thấy rồi thì thoát vòng lặp luôn
+  }
+}
 
-
-        const exRow = sheetExam.getDataRange().getValues().find(r => r[0].toString() == examCode);
+// 2. Kiểm tra nếu không tìm thấy
+if (!student) {
+  return createResponse("error", "SBD hoặc IDGV không chính xác!");
+}
+const exRow = sheetExam.getDataRange().getValues().find(r => 
+  (r[0] || "").toString() === examCode && // Khớp mã đề (Cột A)
+  (r[1] || "").toString() === idgv       // Khớp IDGV (Cột B) 👈 THÊM Ở ĐÂY
+);
         if (!exRow) return createResponseW("error", "Không tìm thấy mã đề: " + examCode);
         // ===== CHECK THỜI GIAN MỞ / ĐÓNG =====
-        const now = new Date();
+const now = new Date();
 
-        const openTime = exRow[12] instanceof Date
-          ? exRow[12]
-          : new Date(exRow[12]);
+const openTime = exRow[12] instanceof Date 
+  ? exRow[12] 
+  : new Date(exRow[12]);
 
-        const closeTime = exRow[11] instanceof Date
-          ? exRow[11]
-          : new Date(exRow[11]);       
+const closeTime = exRow[11] instanceof Date 
+  ? exRow[11] 
+  : new Date(exRow[11]);
 
         // --- BỔ SUNG: CHẶN SỐ LẦN THI ---
         // Cột N là index 13. Lấy số lần thi tối đa cho phép.
         const maxAttempts = parseInt(exRow[13], 10) || 1;
-        const exRowKq = sheetKQ.getRange(2, 1, sheetKQ.getLastRow() - 1, 3).getValues();
-        const currentAttempts = exRowKq.filter(r =>
-          r[1].toString() === examCode && r[2].toString() === sbd
-        ).length;
+        let exRowKq = [];
 
-        if (sbd !== "8888") {
+        if (sheetKQ.getLastRow() > 1) {
+        exRowKq = sheetKQ.getRange(2,1,sheetKQ.getLastRow()-1,3).getValues();
+          }
+        const currentAttempts = exRowKq.filter(r => 
+      r[1].toString() === examCode && r[2].toString() === sbd
+    ).length;
 
-  // 1️⃣ HẾT LƯỢT THI
-  if (currentAttempts >= maxAttempts) {
-    return createResponseW(
-      "error",
-      `❌ Bạn đã hết lượt thi! Mã đề ${examCode} chỉ cho phép ${maxAttempts} lần.`
-    );
-  }
+    if (sbd !== "8888") {       
+      if (openTime && now < openTime) {
+  return createResponseW("error", 
+    "⏳ Bài thi chưa mở. Thời gian mở: " +
+    Utilities.formatDate(openTime, "GMT+7", "yyyy/MM/dd HH:mm")
+  );
+}     
 
-  // 2️⃣ CHƯA ĐẾN GIỜ MỞ
-  if (openTime && now < openTime) {
-    return createResponseW(
-      "error",
-      "⏳ Bài thi chưa mở. Thời gian mở: " +
-      Utilities.formatDate(openTime, "GMT+7", "yyyy/MM/dd HH:mm")
-    );
-  }
-
-  // 3️⃣ QUÁ GIỜ ĐÓNG
-  if (closeTime && now > closeTime) {
-    return createResponseW(
-      "error",
-      "⛔ Bài thi đã đóng lúc: " +
-      Utilities.formatDate(closeTime, "GMT+7", "yyyy/MM/dd HH:mm")
-    );
-  }
+if (closeTime && now > closeTime) {
+  return createResponseW("error", 
+    "⛔ Bài thi đã đóng lúc: " +
+    Utilities.formatDate(closeTime, "GMT+7", "yyyy/MM/dd HH:mm")
+  );
 }
+       if (currentAttempts >= maxAttempts) {
+        return createResponseW("error", `Bạn đã hết lượt thi! Mã đề ${examCode} chỉ cho phép thi tối đa ${maxAttempts} lần.`);
+      }
+    }
         // chuẩn hóa
         const toInt = (v, def = 0) => {
           const n = parseInt(v?.toString().trim(), 10);
@@ -568,26 +832,26 @@ function mainDoPost(e) {
             if (!raw) return null;
 
             // Thay thế đoạn từ dòng 130 đến 135 bằng đoạn này:
-            let contentStr = raw.toString().trim();
-            try {
-              // Ưu tiên 1: Parse trực tiếp dữ liệu chuẩn
-              return JSON.parse(contentStr);
-            } catch (e) {
-              // Ưu tiên 2: Chỉ xử lý nếu JSON thực sự có vấn đề về dấu gạch chéo (Escape)
-              try {
-                // Chỉ nhân đôi dấu gạch chéo nếu cần thiết, không dùng Regex xóa ký tự ẩn
-                let fixed = contentStr.replace(/\\/g, "\\\\").replace(/\\\\"/g, "\\\"");
-                return JSON.parse(fixed);
-              } catch (e2) {
-                // Ưu tiên 3: Trả về object lỗi để không làm treo app
-                return {
-                  type: "mcq",
-                  question: contentStr,
-                  id: r[1],
-                  error: "Lỗi định dạng JSON"
-                };
-              }
-            }
+                let contentStr = raw.toString().trim();
+                    try {
+                        // Ưu tiên 1: Parse trực tiếp dữ liệu chuẩn
+                return JSON.parse(contentStr);
+                  } catch (e) {
+                  // Ưu tiên 2: Chỉ xử lý nếu JSON thực sự có vấn đề về dấu gạch chéo (Escape)
+                      try {
+                    // Chỉ nhân đôi dấu gạch chéo nếu cần thiết, không dùng Regex xóa ký tự ẩn
+                       let fixed = contentStr.replace(/\\/g, "\\\\").replace(/\\\\"/g, "\\\"");
+                      return JSON.parse(fixed);
+                        } catch (e2) {
+                        // Ưu tiên 3: Trả về object lỗi để không làm treo app
+                      return {
+                    type: "mcq",
+                      question: contentStr,
+                    id: r[1],
+              error: "Lỗi định dạng JSON"
+    };
+  }
+}
           })
           .filter(Boolean);
 
@@ -612,6 +876,7 @@ function mainDoPost(e) {
         return createResponseW("error", "Lỗi GAS: " + error.toString());
       }
     }
+
 
 
     // 3 nhánh ghi LG word ==========================================================================================================
@@ -668,7 +933,6 @@ function mainDoPost(e) {
 
       return createResponse("success", `Đã nạp xong ${updatedCount} lời giải cho mã ${examCode}!`);
     }
-
 
 
     // 2. NHÁNH NẠP CÂU HỎI (Khớp 100% với React ở trên)
@@ -733,7 +997,6 @@ function mainDoPost(e) {
       return createResponse("success", `Đã nạp ${rows.length} câu vào mã ${examCode}`);
     }
 
-
     // 1. LƯU CẤU HÌNH (Ghi về Spreadsheet của GV) =========================================================================
     if (action === "saveExamConfig") {
       const sheetExamsGV = ss.getSheetByName("exams") || ss.insertSheet("exams");
@@ -774,166 +1037,6 @@ function mainDoPost(e) {
         return createResponse("success", "✅ Đã lưu cấu hình mới cho đề " + examCode);
       }
     }
-
-
-
-    // 1. NHÁNH LỜI GIẢI - BẢN KHỚP THEO ID
-    if (action === 'saveLG') {
-  
-  var sheetNH = getsheetname(mon);
-  var lastRow = sheetNH.getLastRow();
-  if (lastRow < 1) return createResponse("error", "Database thiếu dòng 1 (header)!");
-
-  // Lấy ID ở cột A (cột 1) để tra cứu
-  var idValues = sheetNH.getRange(1, 1, lastRow, 1).getValues().flat().map(String);
-  var count = 0;
-
-  // data là mảng lời giải từ Web gửi về
-  data.forEach(function (item) {
-    var targetId = String(item.id || "").trim();
-    if (!targetId) return;
-
-    var rowIndex = idValues.indexOf(targetId);
-    if (rowIndex !== -1) {
-      var rowNum = rowIndex + 1;
-      var contentLG = item.loigiai || item.lg || "";
-      
-      // Ghi vào cột K (cột 8)
-      sheetNH.getRange(rowNum, 8).setValue(contentLG);
-      count++;
-    }
-  });
-
-  return createResponse("success", "Đã cập nhật " + count + " lời giải qua Web thành công!");
-}
-    // 2. NHÁNH MA TRẬN (saveMatrix)
-    if (action === "saveMatrix") {
-      const sheetMatran = ss.getSheetByName("matran") || ss.insertSheet("matran");
-      const toStr = (v) => (v != null) ? String(v).trim() : "";
-      const toNum = (v) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
-      const toJson = (v) => {
-        if (!v || v === "" || (Array.isArray(v) && v.length === 0)) return "[]";
-        if (typeof v === 'object') return JSON.stringify(v);
-        let s = String(v).trim();
-        return s.startsWith("[") ? s : "[" + s + "]";
-      };
-      const rowData = [
-        toStr(data.gvId), toStr(data.makiemtra), toStr(data.name), toJson(data.topics),
-        toNum(data.duration), toJson(data.numMC), toNum(data.scoreMC), toJson(data.mcL3),
-        toJson(data.mcL4), toJson(data.numTF), toNum(data.scoreTF), toJson(data.tfL3),
-        toJson(data.tfL4), toJson(data.numSA), toNum(data.scoreSA), toJson(data.saL3), toJson(data.saL4)
-      ];
-      const vals = sheetMatran.getDataRange().getValues();
-      let rowIndex = -1;
-      for (let i = 1; i < vals.length; i++) {
-        if (vals[i][0].toString() === toStr(data.gvId) && vals[i][1].toString() === toStr(data.makiemtra)) {
-          rowIndex = i + 1; break;
-        }
-      }
-      if (rowIndex > 0) { sheetMatran.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]); }
-      else { sheetMatran.appendRow(rowData); }
-      return createResponse("success", "✅ Đã tạo ma trận " + data.makiemtra + " thành công!");
-    }
-
-    // 3. NHÁNH LƯU CÂU HỎI MỚI (saveQuestions)
-    if (action === 'saveQuestions') {
-
-      var now = new Date();
-      
-      var sheetNH = getsheetname(mon);
-      if (!sheetNH) return createResponse("error", "Không tìm thấy sheet môn: " + params.mon);      
-      var lastRow = sheetNH.getLastRow();
-      if (lastRow < 1) return createResponse("error", "Database thiếu dòng 1 (header)!");
-
-      var startRow = sheetNH.getLastRow() + 1;
-
-      var rows = data.map(function (item) {
-        return [
-          item.id,
-          item.classTag,
-          item.type,
-          item.part,
-          item.question,
-          item.options || "",
-          item.answer || "",
-          item.loigiai || "",
-          now
-        ];
-      });
-
-      if (rows.length > 0) {
-    // THAY ĐỔI Ở ĐÂY: getRange(dòng bắt đầu, CỘT BẮT ĐẦU = 4, số dòng, số cột)
-        sheetNH.getRange(startRow, 1, rows.length, rows[0].length)
-      .setValues(rows);
-    
-    // Định dạng WrapText cho các cột nội dung từ cột H (8) đến cột K (11)
-    // Thay vì "D:H" (toàn bộ sheet), chỉ làm cho những dòng vừa nạp để tránh lag
-    sheetNH.getRange(startRow, 4, rows.length, 5).setWrap(true);
-        }
-      var lastRow = sheetNH.getLastRow();
-      // Tự chỉnh chiều cao từ dòng 2 trở xuống
-      if (lastRow > 1) {
-        sheetNH.autoResizeRows(startRow, rows.length);
-      }
-
-      return createResponse("success", "Đã lưu " + rows.length + " câu hỏi thành công!");
-    }
-
-
-    // 4. XÁC MINH GIÁO VIÊN (verifyGV)
-    if (action === "verifyGV") {
-      var sheetGV = ssAdmin.getSheetByName("idgv");
-      var rows = sheetGV.getDataRange().getValues();
-      for (var i = 1; i < rows.length; i++) {
-        if (rows[i][0].toString().trim() === data.idnumber.toString().trim() && rows[i][1].toString().trim() === data.password.toString().trim()) {
-          return resJSON({ status: "success" });
-        }
-      }
-      return resJSON({ status: "error", message: "ID hoặc Mật khẩu GV không đúng!" });
-    }
-
-    // 5. CẬP NHẬT CÂU HỎI 
-    if (action === 'updateQuestion') {
-
-  const payload = JSON.parse(e.postData.contents);
-  const item = payload.data;
-
-  var targetId = item.id || item.idquestion;
-  if (!targetId) return resJSON({ status:'error', message:'ID gửi lên bị trống!' });
-
-  var sheetNH = getsheetname(mon);
-  sheetNH.getRange("E:H").setNumberFormat("@");
-
-  var lastRow = sheetNH.getLastRow();
-
-  var idValues = sheetNH.getRange(1,1,lastRow,1).getValues().flat().map(String);
-
-  var rowIndex = idValues.indexOf(String(targetId));
-
-  if (rowIndex !== -1) {
-
-    var rowNum = rowIndex + 1;
-
-    sheetNH.getRange(rowNum,2).setValue(item.classTag || "");
-    sheetNH.getRange(rowNum,5).setValue(item.question || "");
-    sheetNH.getRange(rowNum,6).setValue(item.options || "");
-    sheetNH.getRange(rowNum,7).setValue(String(item.answer || ""));
-    sheetNH.getRange(rowNum,8).setValue(item.loigiai || "");
-    sheetNH.getRange(rowNum,9).setValue(new Date().toLocaleString('vi-VN'));
-
-    return resJSON({status:'success'});
-  }
-
-  return resJSON({status:'error',message:'Không tìm thấy ID: '+targetId});
-}
-
-
-    // 6. XÁC MINH ADMIN (verifyAdmin)
-    if (action === "verifyAdmin") {
-      if (data.password.toString().trim() === passAdmin) return resJSON({ status: "success", message: "Chào Admin!" });
-      return resJSON({ status: "error", message: "Sai mật khẩu!" });
-    }
-
     // 7. LƯU TỪ WORD (uploadWord)
     if (action === "uploadWord") {
       const sheetExams = ss.getSheetByName("Exams") || ss.insertSheet("Exams");
@@ -942,8 +1045,8 @@ function mainDoPost(e) {
       data.questions.forEach(function (q) { sheetBank.appendRow([data.config.title, q.part, q.type, q.classTag, q.question, q.answer, q.image]); });
       return createResponse("success", "UPLOAD_DONE");
     }
-
-    // 8. NHÁNH THEO TYPE (quiz, rating, ketqua)
+// Khu vực chung #08
+// 8. NHÁNH THEO TYPE (quiz, rating, ketqua)
     if (data.type === 'rating') {
       let sheetRate = ss.getSheetByName("danhgia") || ss.insertSheet("danhgia");
       sheetRate.appendRow([new Date(), data.stars, data.name, data.class, data.idNumber, data.comment || "", data.taikhoanapp]);
@@ -961,7 +1064,10 @@ function mainDoPost(e) {
       sheetResult.appendRow([new Date(), data.examCode, data.sbd, data.name, data.className, data.score, data.totalTime, JSON.stringify(data.details)]);
       return createResponse("success", "Đã lưu kết quả thi");
     }
-    return createResponse("error", "Không khớp lệnh nào!");
+// Khu vực hàm bổ trợ #09
+
+// Cuối dopost
+return createResponse("error", "Không khớp lệnh nào!");
 
   }
   catch (err) {
@@ -971,20 +1077,7 @@ function mainDoPost(e) {
   }
 }
 
-// ====================================================================CÁC HÀM PHỤ TRỢ (Để hết vào đây)
-function getLinkFromRouting(idNumber) {
-  const sheet = ssAdmin.getSheetByName("idgv");
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    // Cột A: idNumber, Cột C: linkscript
-    if (data[i][0].toString().trim() === idNumber.toString().trim()) {
-      return data[i][2].toString().trim();
-    }
-  }
-  return null;
-}
-
+// #09 CÁC HÀM PHỤ TRỢ (Để hết vào đây)
 function getSpreadsheetByTarget(targetId) {
   // 1. Nếu không có ID, dùng ngay file hiện tại (Active)
   if (!targetId || targetId.toString().trim() === "") return SpreadsheetApp.getActiveSpreadsheet();
@@ -1015,11 +1108,9 @@ function getSpreadsheetByTarget(targetId) {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
-
-// Hàm lấy cấu hình chuyên đề
 // Hàm lấy cấu hình chuyên đề từ sheet dangcd
 function getAppConfig() {
-  var sheetCD = ssAdmin.getSheetByName("dangcd");
+  var sheetCD = ss.getSheetByName("dangcd");
   var dataCD = sheetCD.getDataRange().getValues();
 
   var topics = [];
@@ -1054,7 +1145,7 @@ function getAppConfig() {
 function getAppConfigmt() {
   try {
     // Lưu ý: Đảm bảo ssAdmin đã được khai báo ở đầu script của bạn
-    var sheetCD = ssAdmin.getSheetByName("dangcd");
+    var sheetCD = ss.getSheetByName("dangcd");
     if (!sheetCD) return { topics: [] };
 
     var dataCD = sheetCD.getDataRange().getValues();
@@ -1180,7 +1271,6 @@ function shuffle(arr) {
 
 // ==== Ghi exam_data
 
-
 function parseQuestionFromCell(text, id) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const qLine = lines.find(l => l.startsWith('?'));
@@ -1191,9 +1281,9 @@ function parseQuestionFromCell(text, id) {
   return { id, type: 'mcq', question, o: options, a: options[ansIndex] || '' };
 }
 // tìm câu trùng=========================================================================================================================================
-function findDuplicateQuestions(mon) {
-  var sheetNH = getsheetname(mon);
-  const data = sheetNH.getDataRange().getValues();
+function findDuplicateQuestions() {  
+  const sheet = ss.getSheetByName("nganhang");
+  const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const rows = data.slice(1); // Bỏ dòng tiêu đề
 
@@ -1265,17 +1355,15 @@ function getRowObj(row, headers, rowIdx) {
   return obj;
 }
 
-function deleteQuestionRow(rowIdx, mon) {
-  try {
-    var sheetNH = getsheetname(mon);
-    if (!sheetNH) return { status: "error", message: "Không tìm thấy sheet" };
-    sheetNH.deleteRow(parseInt(rowIdx));
+function deleteQuestionRow(rowIdx) {
+  try {    
+    const sheet = ss.getSheetByName("nganhang");
+    sheet.deleteRow(parseInt(rowIdx));
     return { status: "success" };
   } catch (e) {
     return { status: "error", message: e.toString() };
   }
 }
-
 // ======= sửa câu hỏi =====================================================
 function updateQuestion(payload) {
   try {
@@ -1283,19 +1371,19 @@ function updateQuestion(payload) {
     const sheet = sheetNH;
     const fullData = sheet.getDataRange().getValues();
     const headers = fullData[0];
-    
+
     // 1. Kiểm tra ID gửi lên có tồn tại không
     if (!data.id) return { status: "error", message: "ID gửi lên bị trống!" };
 
     // 2. Duyệt tìm dòng
     for (var i = 1; i < fullData.length; i++) {
       // KIỂM TRA: Nếu ô ID bị trống thì bỏ qua dòng này, không .toString() nữa
-      if (!fullData[i][0]) continue; 
+      if (!fullData[i][0]) continue;
 
       // So sánh ID an toàn
       if (fullData[i][0].toString() === data.id.toString()) {
         const rowNum = i + 1;
-        
+
         // Cập nhật các cột dựa trên tên Header
         Object.keys(data).forEach(key => {
           const colIdx = headers.indexOf(key);
@@ -1303,7 +1391,7 @@ function updateQuestion(payload) {
             sheet.getRange(rowNum, colIdx + 1).setValue(data[key]);
           }
         });
-        
+
         return { status: "success" };
       }
     }
@@ -1445,17 +1533,19 @@ function resetData(type, password, mode, exams) {
 }
 // =============================================================Kết thúc Reset chung=========================================================================
 
-// xem điểm
+// xem điểm - Bản sửa lỗi trả về IDGV
 function getScore(e) {
-  const sbd = e.parameter.sbd;
-  const exams = e.parameter.exams;
-
+  const idgv = (e.parameter.idgv || "").trim();
+  const sbd = (e.parameter.sbd || "").trim();
+  const exams = (e.parameter.exams || "").trim().toUpperCase();
+  
   const sheet = ss.getSheetByName("ketqua");
   const data = sheet.getDataRange().getValues();
 
   const results = data.slice(1).filter(row =>
-    row[1].toString().trim().toUpperCase() === exams.trim().toUpperCase() &&
-    row[2].toString().trim() === sbd.trim()
+    row[1].toString().trim().toUpperCase() === exams &&
+    row[2].toString().replace("'", "").trim() === sbd && 
+    row[7].toString().replace("'", "").trim() === idgv // Kiểm tra cột H
   );
 
   if (results.length === 0) {
@@ -1466,41 +1556,35 @@ function getScore(e) {
 
   const row = results[0];
 
+  // TRẢ VỀ ĐẦY ĐỦ CÁC TRƯỜNG ĐỂ REACT HIỂN THỊ
   return ContentService
     .createTextOutput(JSON.stringify({
       status: "success",
       data: {
-        exams: row[1],
-        sbd: row[2],
-        name: row[3],
-        class: row[4],
-        tongdiem: row[5],
-        time: row[6]
+        idgv: row[7],    // THÊM DÒNG NÀY: Trả về cột H để hiện "Mã giáo viên"
+        exams: row[1],   // Cột B
+        sbd: row[2],     // Cột C
+        name: row[3],    // Cột D
+        class: row[4],   // Cột E
+        tongdiem: row[5],// Cột F
+        time: row[6]     // Cột G
       }
     }))
     .setMimeType(ContentService.MimeType.JSON);
 }
-
-function createResponseW(status, message, data) {
-  var output = JSON.stringify({
-    status: status,
-    message: message,
-    data: data || null
-  });
-
-  return ContentService.createTextOutput(output)
-    .setMimeType(ContentService.MimeType.JSON);    
+function createResponseW(status, message, data = null) {
+  const output = { status: status, message: message };
+  if (data !== null) output.data = data;
+  return ContentService
+    .createTextOutput(JSON.stringify(output))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 function createResponse(status, message, data) {
-  var output = JSON.stringify({
-    status: status,
-    message: message,
-    data: data || null
-  });
-
-  return ContentService.createTextOutput(output)
+  const output = { status: status, message: message };
+  if (data) output.data = data;
+  return ContentService
+    .createTextOutput(JSON.stringify(output))
     .setMimeType(ContentService.MimeType.JSON);
-    
 }
 
 // Giữ lại resJSON để phục vụ các đoạn code cũ đang gọi tên này
@@ -1513,24 +1597,167 @@ function jsonOutput(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ==== Hàm lấy tên sheet
-function getsheetname(mon) {
-  var mon = String(mon || "").toLowerCase().trim();
-  const cleanMon = clean(mon);
-  const sheetName = "NH" + cleanMon;
+// Đăng ký GameShow
+  function register(e) {
+  const phone = (e.parameter.phone || "").trim();
+  const pass = (e.parameter.pass || "").trim();
 
-  var sheet = ssAdmin.getSheetByName(sheetName);
-  if (!sheet) {
-    Logger.log("Không tìm thấy sheet: " + sheetName);
-    return null;
+  if (!phone || !pass) {
+    return createResponse("error", "Thiếu dữ liệu!");
   }
-  return sheet;
+
+  const sheet = ssAdmin.getSheetByName("gameshow");
+  const data = sheet.getDataRange().getValues();
+
+  // kiểm tra trùng
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][1] == phone) {
+      return createResponse("exists", "Số điện thoại đã tồn tại!");
+    }
+  }
+
+  sheet.appendRow([
+    new Date(),
+    "'" + phone,
+    pass,
+    "VIP0",
+    ""
+  ]);
+
+  return createResponse("success", "Đăng ký thành công!");
 }
 
-// chuẩn hóa text
-function clean(text, fallback = "") {
-  return String(text ?? fallback)
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " "); // gom nhiều space thành 1
+function login(e) {
+  const phone = (e.parameter.phone || "").trim();
+  const pass = (e.parameter.pass || "").trim();
+
+  const sheet = ssAdmin.getSheetByName("gameshow");
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+
+    // 🔥 FIX QUAN TRỌNG: bỏ dấu '
+    const phoneSheet = data[i][1].toString().replace("'", "").trim();
+    const passSheet = data[i][2].toString().trim();
+
+    if (phoneSheet === phone && passSheet === pass) {
+      return createResponse("success", "OK", {
+        phone: phoneSheet,
+        vip: data[i][3] || "VIP0",
+        name: data[i][4] || ""
+      });
+    }
+  }
+
+  return createResponse("fail", "Sai tài khoản hoặc mật khẩu!");
+}
+
+function adminLogin(e) {
+  const id = (e.parameter.id || "").trim();
+  const pass = (e.parameter.pass || "").trim();
+
+  if (!id || !pass) {
+    return createResponse("error", "Thiếu dữ liệu!");
+  }
+
+  if (id === idadmin && pass === passAdmin) {
+    return createResponse("success", "OK");
+  }
+
+  return createResponse("error", "Sai tài khoản!");
+}
+
+
+function getUsers(e) {
+  const id = e.parameter.id;
+  const pass = e.parameter.pass;
+
+  if (id !== idadmin || pass !== passAdmin) {
+    return jsonOut({ status: "error", message: "Unauthorized" });
+  }
+  const sheet = ssAdmin.getSheetByName("gameshow");
+
+  const data = sheet.getDataRange().getValues();
+  const users = [];
+
+  for (let i = 1; i < data.length; i++) {
+    users.push({
+      phone: data[i][1],
+      vip: data[i][3],
+      name: data[i][4]
+    });
+  }
+
+  return jsonOut({ status: "success", data: users });
+}
+
+function updatePassword(e) {
+  const phone = (e.parameter.phone || "").trim();
+  const newPass = (e.parameter.pass || "").trim();
+
+  if (!phone || !newPass) {
+    return createResponse("error", "Thiếu dữ liệu!");
+  }
+
+  const sheet = ssAdmin.getSheetByName("gameshow");
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+
+    // 🔥 xử lý dấu ' ở số điện thoại
+    const phoneSheet = data[i][1].toString().replace("'", "").trim();
+
+    if (phoneSheet === phone) {
+      sheet.getRange(i + 1, 3).setValue(newPass); // cột C = password
+
+      return createResponse("success", "Đổi mật khẩu thành công!");
+    }
+  }
+
+  return createResponse("error", "Không tìm thấy tài khoản!");
+}
+
+function getTeachers() {
+  const sheet = ssAdmin.getSheetByName("gameshow");
+  const data = sheet.getDataRange().getValues();
+
+  const result = [];
+
+  for (let i = 1; i < data.length; i++) {
+    result.push({
+      phone: data[i][1].toString().replace("'", ""),
+      password: data[i][2],
+      vip: data[i][3] || "VIP0",
+      createdAt: data[i][0]
+    });
+  }
+
+  return createResponse("success", "OK", result);
+}
+
+function updateTeacher(e) {
+  const phone = (e.parameter.phone || "").trim();
+  const pass = (e.parameter.pass || "").trim();
+  const vip = (e.parameter.vip || "").trim();
+
+  const sheet = ssAdmin.getSheetByName("gameshow");
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const phoneSheet = data[i][1].toString().replace("'", "").trim();
+
+    if (phoneSheet === phone) {
+
+      if (pass) sheet.getRange(i + 1, 3).setValue(pass);
+      if (vip) sheet.getRange(i + 1, 4).setValue(vip);
+
+      return createResponse("success", "Đã cập nhật!");
+    }
+  }
+
+  return createResponse("error", "Không tìm thấy GV!");
+}
+// Hàm lấy 9 ký tự bên phải
+function N9(id) {
+  return id.toString().replace(/'/g, "").trim().slice(-9);
 }
