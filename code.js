@@ -1304,44 +1304,53 @@ function updateQuestion(payload) {
   }
 }
 // lọc mã exems chung
-function getExamsList(type, idgv) {
-  if (!idgv) return createResponse("error", "Thiếu IDGV");
+function getExamsList(type) {
 
-  let sheetName = "";
-  let colExamsIdx = -1; // Cột chứa mã đề (0-based)
-  let colIdGvIdx = -1;   // Cột chứa IDGV (0-based)
+  let sheetName;
+  let columnIndex;
 
-  // Cấu hình theo mô tả của bạn
-  if (type === "ketqua") { 
-    sheetName = "ketqua"; colExamsIdx = 1; colIdGvIdx = 7; // B(1), H(7)
-  } else if (type === "matran") { 
-    sheetName = "matran"; colExamsIdx = 1; colIdGvIdx = 0; // B(1), A(0)
-  } else if (type === "exams") { 
-    sheetName = "exams"; colExamsIdx = 0; colIdGvIdx = 1; // A(0), B(1)
-  } else if (type === "exam_data") { 
-    sheetName = "exam_data"; colExamsIdx = 0; colIdGvIdx = 7; // A(0), H(7)
-  } else {
+  if (type === "ketqua") {
+    sheetName = "ketqua";
+    columnIndex = 1; // cột B
+  }
+
+  else if (type === "matran") {
+    sheetName = "matran";
+    columnIndex = 1; // cột B
+  }
+
+  else if (type === "exams") {
+    sheetName = "exams";
+    columnIndex = 0; // cột A
+  }
+
+  else if (type === "exam_data") {
+    sheetName = "exam_data";
+    columnIndex = 0; // cột A
+  }
+
+  else {
     return createResponse("error", "Type không hợp lệ");
   }
 
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return createResponse("error", "Không thấy sheet " + sheetName);
+  if (!sheet) {
+    return createResponse("error", "Không tìm thấy sheet " + sheetName);
+  }
 
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return createResponse("success", "OK", []);
 
-  // Lấy toàn bộ dữ liệu của sheet
-  const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const targetId = String(idgv).trim().toLowerCase();
+  if (lastRow <= 1) {
+    return createResponse("success", "OK", []);
+  }
 
-  // LỌC: Chỉ lấy mã đề của giáo viên này
-  const filtered = data
-    .filter(row => String(row[colIdGvIdx]).trim().toLowerCase() === targetId)
-    .map(row => String(row[colExamsIdx]).trim())
-    .filter(v => v !== ""); // Bỏ ô trống
+  const examsColumn = sheet
+    .getRange(2, columnIndex + 1, lastRow - 1, 1)
+    .getValues()
+    .flat()
+    .filter(v => v && v !== "");
 
-  // Loại bỏ trùng lặp
-  const unique = [...new Set(filtered)];
+  const unique = [...new Set(examsColumn)];
 
   return createResponse("success", "OK", unique);
 }
