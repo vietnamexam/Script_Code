@@ -1311,37 +1311,43 @@ function getExamsList(type, idgv) {
   let colExamsIdx = -1;
   let colIdGvIdx = -1;
 
-  // Cấu hình cột theo mô tả của bạn
+  // Kiểm tra kỹ lại các cột này trong file GSheet của bạn
   if (type === "ketqua") { 
-    sheetName = "ketqua"; colExamsIdx = 1; colIdGvIdx = 7; // Exams cột B(1), IDGV cột H(7)
+    sheetName = "ketqua"; colExamsIdx = 1; colIdGvIdx = 7; // Cột B và H
   } else if (type === "matran") { 
-    sheetName = "matran"; colExamsIdx = 1; colIdGvIdx = 0; // Exams cột B(1), IDGV cột A(0)
+    sheetName = "matran"; colExamsIdx = 1; colIdGvIdx = 0; // Cột B và A
   } else if (type === "exams") { 
-    sheetName = "exams"; colExamsIdx = 0; colIdGvIdx = 1; // Exams cột A(0), IDGV cột B(1)
+    sheetName = "exams"; colExamsIdx = 0; colIdGvIdx = 1; // Cột A và B
   } else if (type === "exam_data") { 
-    sheetName = "exam_data"; colExamsIdx = 0; colIdGvIdx = 7; // Exams cột A(0), IDGV cột H(7)
+    sheetName = "exam_data"; colExamsIdx = 0; colIdGvIdx = 7; // Cột A và H
   } else {
     return createResponse("error", "Type không hợp lệ");
   }
 
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return createResponse("error", "Không tìm thấy sheet " + sheetName);
+  if (!sheet) return createResponse("error", "Không tìm thấy sheet: " + sheetName);
 
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return createResponse("success", "OK", []);
+  if (lastRow <= 1) return createResponse("success", "Sheet trống", []);
 
-  // Lấy toàn bộ dữ liệu của sheet đó
+  // Lấy toàn bộ dữ liệu
   const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const targetIdGv = N9(idgv);
+  
+  // Chuẩn hóa IDGV mục tiêu: viết thường và xóa khoảng trắng
+  const targetIdGv = N9(idgv).toLowerCase().trim();
 
-  // LỌC: Chỉ lấy những dòng có IDGV khớp, sau đó lấy mã Exams tương ứng
   const filteredExams = data
-    .filter(row => N9(row[colIdGvIdx]) === targetIdGv)
+    .filter(row => {
+      const rowIdGv = N9(row[colIdGvIdx]).toLowerCase().trim();
+      return rowIdGv === targetIdGv;
+    })
     .map(row => String(row[colExamsIdx]).trim())
     .filter(v => v !== ""); // Loại bỏ ô trống
 
-  // Loại bỏ các mã trùng lặp (nếu một mã đề có nhiều dòng kết quả)
   const unique = [...new Set(filteredExams)];
+  
+  // Log ra Console của GSheet để bạn kiểm tra nếu vẫn lỗi
+  console.log("Found exams for " + targetIdGv + ": " + unique.length);
 
   return createResponse("success", "OK", unique);
 }
