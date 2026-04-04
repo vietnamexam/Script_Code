@@ -1332,11 +1332,11 @@ function getExamsList(type, idgv) {
 
   // Lấy toàn bộ dữ liệu của sheet đó
   const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const targetIdGv = String(idgv).trim();
+  const targetIdGv = N9(idgv);
 
   // LỌC: Chỉ lấy những dòng có IDGV khớp, sau đó lấy mã Exams tương ứng
   const filteredExams = data
-    .filter(row => String(row[colIdGvIdx]).trim() === targetIdGv)
+    .filter(row => N9(row[colIdGvIdx]) === targetIdGv)
     .map(row => String(row[colExamsIdx]).trim())
     .filter(v => v !== ""); // Loại bỏ ô trống
 
@@ -1369,13 +1369,13 @@ function resetData(type, password, mode, exams, idgv) {
 
   // 1. Lấy toàn bộ dữ liệu 1 lần duy nhất
   const fullData = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const targetIdGv = String(idgv).trim();
+  const targetIdGv = N9(idgv);
   const targetExams = String(exams).trim();
 
   // 2. Lọc lấy danh sách các dòng cần GIỮ LẠI (Filter out)
   // Việc giữ lại những dòng KHÔNG khớp sẽ nhanh hơn là xóa từng dòng khớp
   const remainingData = fullData.filter(row => {
-    const rowIdGv = String(row[colIdGvIdx]).trim();
+    const rowIdGv = N9(row[colIdGvIdx]);
     const rowExams = String(row[colExamsIdx]).trim();
 
     if (mode === "all") {
