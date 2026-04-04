@@ -325,7 +325,7 @@ const params = e.parameter;
 // #04 chung
 // ===== LẤY LIST EXAMS =====
   if (action === "getExamsList") {
-    return getExamsList(e.parameter.type);
+    return getExamsList(e.parameter.type, e.parameter.idgv );
   }
 
   // ===== RESET DATA =====
@@ -334,7 +334,8 @@ const params = e.parameter;
       e.parameter.type,
       e.parameter.password,
       e.parameter.mode,
-      e.parameter.exams
+      e.parameter.exams,
+      e.parameter.idgv
     );
   }
 
@@ -1303,134 +1304,104 @@ function updateQuestion(payload) {
   }
 }
 // lọc mã exems chung
-function getExamsList(type) {
+function getExamsList(type, idgv) {
+  if (!idgv) return createResponse("error", "Thiếu IDGV");
 
-  let sheetName;
-  let columnIndex;
+  let sheetName = "";
+  let colExamsIdx = -1;
+  let colIdGvIdx = -1;
 
-  if (type === "ketqua") {
-    sheetName = "ketqua";
-    columnIndex = 1; // cột B
-  }
-
-  else if (type === "matran") {
-    sheetName = "matran";
-    columnIndex = 1; // cột B
-  }
-
-  else if (type === "exams") {
-    sheetName = "exams";
-    columnIndex = 0; // cột A
-  }
-
-  else if (type === "exam_data") {
-    sheetName = "exam_data";
-    columnIndex = 0; // cột A
-  }
-
-  else {
+  // Cấu hình cột theo mô tả của bạn
+  if (type === "ketqua") { 
+    sheetName = "ketqua"; colExamsIdx = 1; colIdGvIdx = 7; // Exams cột B(1), IDGV cột H(7)
+  } else if (type === "matran") { 
+    sheetName = "matran"; colExamsIdx = 1; colIdGvIdx = 0; // Exams cột B(1), IDGV cột A(0)
+  } else if (type === "exams") { 
+    sheetName = "exams"; colExamsIdx = 0; colIdGvIdx = 1; // Exams cột A(0), IDGV cột B(1)
+  } else if (type === "exam_data") { 
+    sheetName = "exam_data"; colExamsIdx = 0; colIdGvIdx = 7; // Exams cột A(0), IDGV cột H(7)
+  } else {
     return createResponse("error", "Type không hợp lệ");
   }
 
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    return createResponse("error", "Không tìm thấy sheet " + sheetName);
-  }
+  if (!sheet) return createResponse("error", "Không tìm thấy sheet " + sheetName);
 
   const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return createResponse("success", "OK", []);
 
-  if (lastRow <= 1) {
-    return createResponse("success", "OK", []);
-  }
+  // Lấy toàn bộ dữ liệu của sheet đó
+  const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const targetIdGv = String(idgv).trim();
 
-  const examsColumn = sheet
-    .getRange(2, columnIndex + 1, lastRow - 1, 1)
-    .getValues()
-    .flat()
-    .filter(v => v && v !== "");
+  // LỌC: Chỉ lấy những dòng có IDGV khớp, sau đó lấy mã Exams tương ứng
+  const filteredExams = data
+    .filter(row => String(row[colIdGvIdx]).trim() === targetIdGv)
+    .map(row => String(row[colExamsIdx]).trim())
+    .filter(v => v !== ""); // Loại bỏ ô trống
 
-  const unique = [...new Set(examsColumn)];
+  // Loại bỏ các mã trùng lặp (nếu một mã đề có nhiều dòng kết quả)
+  const unique = [...new Set(filteredExams)];
 
   return createResponse("success", "OK", unique);
 }
 // Reset chung
-function resetData(type, password, mode, exams) {
-
-  if (password !== passReset) {
-    return createResponse("error", "Sai mật khẩu!");
-  }
+function resetData(type, password, mode, exams, idgv) {
+  if (password !== passReset) return createResponse("error", "Sai mật khẩu!");
+  if (!idgv) return createResponse("error", "Thiếu IDGV");
 
   let sheetName = "";
+  let colIdGvIdx = -1; 
+  let colExamsIdx = -1;
 
-  if (type === "ketqua") sheetName = "ketqua";
-  else if (type === "matran") sheetName = "matran";
-  else if (type === "exams") sheetName = "exams";
-  else if (type === "exam_data") sheetName = "exam_data";
+  // Cấu hình cột
+  if (type === "ketqua") { sheetName = "ketqua"; colIdGvIdx = 7; colExamsIdx = 1; }
+  else if (type === "matran") { sheetName = "matran"; colIdGvIdx = 0; colExamsIdx = 1; }
+  else if (type === "exams") { sheetName = "exams"; colIdGvIdx = 1; colExamsIdx = 0; }
+  else if (type === "exam_data") { sheetName = "exam_data"; colIdGvIdx = 7; colExamsIdx = 0; }
   else return createResponse("error", "Type không hợp lệ");
 
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) {
-    return createResponse("error", "Không tìm thấy sheet " + sheetName);
-  }
+  if (!sheet) return createResponse("error", "Không tìm thấy sheet");
 
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) {
-    return createResponse("success", "Không có dữ liệu để xóa");
-  }
+  if (lastRow <= 1) return createResponse("success", "Không có dữ liệu");
 
-  // ======================
-  // MODE 1 — XÓA ALL
-  // ======================
-  if (mode === "all") {
-    sheet.deleteRows(2, lastRow - 1);
-    return createResponse("success", "Đã xóa toàn bộ dữ liệu trong sheet(" + sheetName + ")");
-  }
+  // 1. Lấy toàn bộ dữ liệu 1 lần duy nhất
+  const fullData = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const targetIdGv = String(idgv).trim();
+  const targetExams = String(exams).trim();
 
-  // ======================
-  // MODE 2 — XÓA THEO EXAMS
-  // ======================
-  if (mode === "byExams") {
+  // 2. Lọc lấy danh sách các dòng cần GIỮ LẠI (Filter out)
+  // Việc giữ lại những dòng KHÔNG khớp sẽ nhanh hơn là xóa từng dòng khớp
+  const remainingData = fullData.filter(row => {
+    const rowIdGv = String(row[colIdGvIdx]).trim();
+    const rowExams = String(row[colExamsIdx]).trim();
 
-    if (!exams) {
-      return createResponse("error", "Thiếu mã exams");
+    if (mode === "all") {
+      // Giữ lại nếu IDGV khác với người đang xóa
+      return rowIdGv !== targetIdGv;
+    } else if (mode === "byExams") {
+      // Giữ lại nếu khác IDGV HOẶC (cùng IDGV nhưng khác mã Exams)
+      return (rowIdGv !== targetIdGv) || (rowExams !== targetExams);
     }
+    return true;
+  });
 
-    const data = sheet
-      .getRange(2, 1, lastRow - 1, sheet.getLastColumn())
-      .getValues();
+  // 3. Tính số dòng đã xóa
+  const deletedCount = fullData.length - remainingData.length;
 
-    let rowsToDelete = [];
-
-    data.forEach((row, index) => {
-
-      let rowExams = "";
-
-      // Cột chứa mã exams
-      if (type === "ketqua") rowExams = row[1];      // cột B
-      if (type === "matran") rowExams = row[1];      // cột B
-      if (type === "exams") rowExams = row[0];       // cột A
-      if (type === "exam_data") rowExams = row[0];   // cột A
-
-      if (String(rowExams).trim() === String(exams).trim()) {
-        rowsToDelete.push(index + 2); // +2 vì bỏ header
-      }
-
-    });
-
-    if (rowsToDelete.length === 0) {
-      return createResponse("error", "Không tìm thấy mã exams");
-    }
-
-    // Xóa từ dưới lên
-    rowsToDelete.reverse().forEach(r => sheet.deleteRow(r));
-
-    return createResponse(
-      "success",
-      "Đã xóa " + rowsToDelete.length + " dòng trong sheet(" + sheetName + ")"
-    );
+  if (deletedCount === 0) {
+    return createResponse("error", "Không tìm thấy dữ liệu phù hợp của giáo viên này");
   }
 
-  return createResponse("error", "Mode không hợp lệ");
+  // 4. Ghi đè lại dữ liệu (Nhanh hơn rất nhiều so với deleteRow từng dòng)
+  sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
+  if (remainingData.length > 0) {
+    sheet.getRange(2, 1, remainingData.length, remainingData[0].length).setValues(remainingData);
+  }
+
+  return createResponse("success", `Đã xóa ${deletedCount} dòng dữ liệu của ${idgv}`);
 }
 // =============================================================Kết thúc Reset chung=========================================================================
 
