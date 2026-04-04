@@ -4,6 +4,7 @@ function mainDoGet(e) {
 const params = e.parameter;
   const type = params.type;
   const action = params.action || e.parameter.action;  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
 //#01
   // Xác minh bên VBA
  if (action === "getIdGV") {
@@ -106,7 +107,8 @@ const params = e.parameter;
 // load ngân hàng đề
   if (action === "loadQuestions") {
 
-    var values = sheetNH.getDataRange().getValues();
+    const sheet = ss.getSheetByName("nganhang");
+    const values = sheet.getDataRange().getValues();
     if (values.length <= 1) {
       return createResponse("success", "Không có dữ liệu", []);
     }
