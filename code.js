@@ -498,10 +498,24 @@ const lock = LockService.getScriptLock();
       };
       sheetMatran.getRange("A:A").setNumberFormat("@");
       const rowData = [
-        "'" + toStr(data.gvId), toStr(data.makiemtra), toStr(data.name), toJson(data.topics),
-        toNum(data.duration), toJson(data.numMC), toNum(data.scoreMC), toJson(data.mcL3),
-        toJson(data.mcL4), toJson(data.numTF), toNum(data.scoreTF), toJson(data.tfL3),
-        toJson(data.tfL4), toJson(data.numSA), toNum(data.scoreSA), toJson(data.saL3), toJson(data.saL4)
+        "'" + toStr(data.gvId), 
+        toStr(data.makiemtra), 
+        toStr(data.name), 
+        toJson(data.topics),
+        toNum(data.duration), 
+        toJson(data.numMC), 
+        toNum(data.scoreMC), 
+        toJson(data.mcL3),
+        toJson(data.mcL4), 
+        toJson(data.numTF), 
+        toNum(data.scoreTF), 
+        toJson(data.tfL3),
+        toJson(data.tfL4), 
+        toJson(data.numSA), 
+        toNum(data.scoreSA), 
+        toJson(data.saL3), 
+        toJson(data.saL4),
+        toStr(data.makiemtra) + "." + toStr(data.gvId)
       ];
       const vals = sheetMatran.getDataRange().getValues();
       let rowIndex = -1;
@@ -597,8 +611,9 @@ const lock = LockService.getScriptLock();
           data.className || data.class || "",            // Cột E: Nhận cả 2 tên biến
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
-          "'" + data.idgv || "",                                      // Cột H
-          data.details || ""                             
+          "'" + data.idgv || "",                         // Cột H  
+          data.modeKq || "",                             // Cột I  
+          data.details || ""                             // Cột K
         ]);
 
         return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
@@ -819,6 +834,7 @@ if (closeTime && now > closeTime) {
   const sheet = ss.getSheetByName("exam_data") || ss.insertSheet("exam_data");
   const qArray = data.questions;
   const examCode = data.examCode;
+  const idgv = data.idgv;
   const force = data.force || false; 
   
   if (!Array.isArray(qArray)) return createResponse("error", "questions không phải mảng!");
@@ -843,7 +859,15 @@ if (closeTime && now > closeTime) {
       const q = qArray[0];
       let finalLG = (q.loigiai && q.loigiai.trim() !== "") ? q.loigiai : "Đang cập nhật...";
       const rowToUpdate = [
-        examCode, q.id || "", q.classTag || "1001.a", q.type || "mcq", q.question || "", finalLG, new Date()
+        examCode, 
+        q.id || "", 
+        q.classTag || "1001.a", 
+        q.type || "mcq", 
+        q.question || "", 
+        finalLG, 
+        "'" + idgv,
+        examCode + "." + idgv,
+        new Date()
       ];
       sheet.getRange(rowIdx, 1, 1, 7).setValues([rowToUpdate]);
       return createResponse("success", `Đã cập nhật riêng câu ID: ${targetId}`);
@@ -901,8 +925,21 @@ if (closeTime && now > closeTime) {
       }
         sheetExamsGV.getRange("B:B").setNumberFormat("@");
       const rowData = [
-        examCode, "'" + idgv, cfg.numMCQ, cfg.scoreMCQ, cfg.numTF, cfg.scoreTF,
-        cfg.numSA, cfg.scoreSA, cfg.duration, cfg.mintime, cfg.tab, cfg.close, cfg.open, cfg.maxthi
+        examCode, 
+        "'" + idgv, 
+        cfg.numMCQ, 
+        cfg.scoreMCQ, 
+        cfg.numTF, 
+        cfg.scoreTF,
+        cfg.numSA, 
+        cfg.scoreSA, 
+        cfg.duration, 
+        cfg.mintime, 
+        cfg.tab, 
+        cfg.close, 
+        cfg.open, 
+        cfg.maxthi,
+        examCode + "." + idgv
       ];
       
       if (existingRow !== -1) {
@@ -1304,29 +1341,29 @@ function updateQuestion(payload) {
   }
 }
 // lọc mã exems chung
-function getExamsList(type) {
+function getExamsList(type, idgv) {
 
   let sheetName;
   let columnIndex;
 
   if (type === "ketqua") {
     sheetName = "ketqua";
-    columnIndex = 1; // cột B
+    columnIndex = 8; // cột B
   }
 
   else if (type === "matran") {
     sheetName = "matran";
-    columnIndex = 1; // cột B
+    columnIndex = 17; // cột B
   }
 
   else if (type === "exams") {
     sheetName = "exams";
-    columnIndex = 0; // cột A
+    columnIndex = 14; // cột A
   }
 
   else if (type === "exam_data") {
     sheetName = "exam_data";
-    columnIndex = 0; // cột A
+    columnIndex = 8; // cột A
   }
 
   else {
