@@ -597,11 +597,16 @@ const lock = LockService.getScriptLock();
     if (data.action === "submitExam") {
       try {
 
-        const sheetExams = ss.getSheetByName("exams");
+        const sheetExams = ss.getSheetByName("exams");    
 
         // Tìm dòng chứa mã đề để biết hàng cần ghi hoặc ghi mới vào sheet kết quả
         // Ở đây mình ví dụ ghi vào cuối sheet "exams" hoặc bạn nên tạo sheet "ketqua" riêng
         const sheetKq = ss.getSheetByName("ketqua") || sheetExams;
+        const maDe = data.exams || data.examCode || "";
+        const maGV = data.idgv || "";
+    
+    // TỰ TẠO CHUỖI MODE_KQ NGAY TẠI ĐÂY (Thay cho lệnh gán trên Sheet)
+        const modeKqTuDong = maDe.toString().toUpperCase() + "." + maGV.toString();
 
         sheetKq.appendRow([
           data.timestamp,                                // Cột A         
@@ -612,7 +617,7 @@ const lock = LockService.getScriptLock();
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
           "'" + (data.idgv || ""),                         // Cột H  
-          data.modeKq || "",                             // Cột I           
+          modeKqTuDong || "",                             // Cột I           
           // data.details || ""                             // Cột j
         ]);
 
