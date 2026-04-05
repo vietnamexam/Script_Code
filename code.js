@@ -593,7 +593,7 @@ const lock = LockService.getScriptLock();
 }
 
 // #07 Thi lẻ
-// Ghi kết quả thi ma trận
+// Ghi kết quả thi ma trận và thi lẻ
     if (data.action === "submitExam") {
       try {
 
@@ -611,10 +611,9 @@ const lock = LockService.getScriptLock();
           data.className || data.class || "",            // Cột E: Nhận cả 2 tên biến
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
-          "'" + data.idgv || "",                         // Cột H  
-          data.modeKq || "",                             // Cột I 
-          "",
-          data.details || ""                             // Cột K
+          "'" + (data.idgv || ""),                         // Cột H  
+          data.modeKq || "",                             // Cột I           
+          // data.details || ""                             // Cột j
         ]);
 
         return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
