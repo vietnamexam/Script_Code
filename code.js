@@ -593,7 +593,7 @@ const lock = LockService.getScriptLock();
 }
 
 // #07 Thi lẻ
-// Ghi kết quả thi lẻ
+// Ghi kết quả thi ma trận
     if (data.action === "submitExam") {
       try {
 
@@ -612,7 +612,8 @@ const lock = LockService.getScriptLock();
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
           "'" + data.idgv || "",                         // Cột H  
-          data.modeKq || "",                             // Cột I  
+          data.modeKq || "",                             // Cột I 
+          "",
           data.details || ""                             // Cột K
         ]);
 
