@@ -606,7 +606,7 @@ const lock = LockService.getScriptLock();
         const maGV = data.idgv || "";
     
     // TỰ TẠO CHUỖI MODE_KQ NGAY TẠI ĐÂY (Thay cho lệnh gán trên Sheet)
-        const modeKqTuDong = maDe.toString().toUpperCase() + "." + maGV.toString();
+        const modeKqTuDong = maDe.toString() + "." + maGV.toString();
 
         sheetKq.appendRow([
           data.timestamp,                                // Cột A         
@@ -617,9 +617,8 @@ const lock = LockService.getScriptLock();
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
           "'" + (data.idgv || ""),                         // Cột H  
-          modeKqTuDong || "",                             // Cột I           
-          // data.details || ""                             // Cột j
-        ]);
+          modeKqTuDong || "",                             // Cột I     
+         ]);
 
         return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
           .setMimeType(ContentService.MimeType.JSON);
