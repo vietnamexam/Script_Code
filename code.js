@@ -1394,60 +1394,78 @@ function getExamsList(type, idgv) {
 // Reset chung
 function resetData(type, password, mode, exams, idgv) {
   if (password !== passReset) return createResponse("error", "Sai mật khẩu!");
-  if (!idgv) return createResponse("error", "Thiếu IDGV");
+  if (!idgv) return createResponse("error", "Thiếu IDGV"); 
 
   let sheetName = "";
-  let colIdGvIdx = -1; 
-  let colExamsIdx = -1;
-
-  // Cấu hình cột
-  if (type === "ketqua") { sheetName = "ketqua"; colIdGvIdx = 7; colExamsIdx = 1; }
-  else if (type === "matran") { sheetName = "matran"; colIdGvIdx = 0; colExamsIdx = 1; }
-  else if (type === "exams") { sheetName = "exams"; colIdGvIdx = 1; colExamsIdx = 0; }
-  else if (type === "exam_data") { sheetName = "exam_data"; colIdGvIdx = 7; colExamsIdx = 0; }
+  if (type === "ketqua") sheetName = "ketqua";
+  else if (type === "matran") sheetName = "matran";
+  else if (type === "exams") sheetName = "exams";
+  else if (type === "exam_data") sheetName = "exam_data";
   else return createResponse("error", "Type không hợp lệ");
 
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return createResponse("error", "Không tìm thấy sheet");
+  if (!sheet) {
+    return createResponse("error", "Không tìm thấy sheet " + sheetName);
+  }
 
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return createResponse("success", "Không có dữ liệu");
+  if (lastRow <= 1) {
+    return createResponse("success", "Không có dữ liệu để xóa");
+  }
 
-  // 1. Lấy toàn bộ dữ liệu 1 lần duy nhất
-  const fullData = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-  const targetIdGv = N9(idgv);
-  const targetExams = String(exams).trim();
+  // ======================
+  // MODE 1 — XÓA ALL
+  // ======================
+  if (mode === "all") {
+    sheet.deleteRows(2, lastRow - 1);
+    return createResponse("success", "Đã xóa toàn bộ dữ liệu trong sheet(" + sheetName + ")");
+  }
 
-  // 2. Lọc lấy danh sách các dòng cần GIỮ LẠI (Filter out)
-  // Việc giữ lại những dòng KHÔNG khớp sẽ nhanh hơn là xóa từng dòng khớp
-  const remainingData = fullData.filter(row => {
-    const rowIdGv = N9(row[colIdGvIdx]);
-    const rowExams = String(row[colExamsIdx]).trim();
+  // ======================
+  // MODE 2 — XÓA THEO EXAMS
+  // ======================
+  if (mode === "byExams") {
 
-    if (mode === "all") {
-      // Giữ lại nếu IDGV khác với người đang xóa
-      return rowIdGv !== targetIdGv;
-    } else if (mode === "byExams") {
-      // Giữ lại nếu khác IDGV HOẶC (cùng IDGV nhưng khác mã Exams)
-      return (rowIdGv !== targetIdGv) || (rowExams !== targetExams);
+    if (!exams) {
+      return createResponse("error", "Thiếu mã exams");
     }
-    return true;
-  });
 
-  // 3. Tính số dòng đã xóa
-  const deletedCount = fullData.length - remainingData.length;
+    const data = sheet
+      .getRange(2, 1, lastRow - 1, sheet.getLastColumn())
+      .getValues();
 
-  if (deletedCount === 0) {
-    return createResponse("error", "Không tìm thấy dữ liệu phù hợp của giáo viên này");
+    let rowsToDelete = [];
+
+    data.forEach((row, index) => {
+
+      let rowExams = "";
+
+      // Cột chứa mã exams
+      if (type === "ketqua") rowExams = row[1];      // cột B
+      if (type === "matran") rowExams = row[1];      // cột B
+      if (type === "exams") rowExams = row[0];       // cột A
+      if (type === "exam_data") rowExams = row[0];   // cột A
+
+      if (String(rowExams).trim() === String(exams).trim()) {
+        rowsToDelete.push(index + 2); // +2 vì bỏ header
+      }
+
+    });
+
+    if (rowsToDelete.length === 0) {
+      return createResponse("error", "Không tìm thấy mã exams");
+    }
+
+    // Xóa từ dưới lên
+    rowsToDelete.reverse().forEach(r => sheet.deleteRow(r));
+
+    return createResponse(
+      "success",
+      "Đã xóa " + rowsToDelete.length + " dòng trong sheet(" + sheetName + ")"
+    );
   }
 
-  // 4. Ghi đè lại dữ liệu (Nhanh hơn rất nhiều so với deleteRow từng dòng)
-  sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
-  if (remainingData.length > 0) {
-    sheet.getRange(2, 1, remainingData.length, remainingData[0].length).setValues(remainingData);
-  }
-
-  return createResponse("success", `Đã xóa ${deletedCount} dòng dữ liệu của ${idgv}`);
+  return createResponse("error", "Mode không hợp lệ");
 }
 // =============================================================Kết thúc Reset chung=========================================================================
 
