@@ -4,8 +4,8 @@ function mainDoGet(e) {
 const params = e.parameter;
   const type = params.type;
   const action = params.action || e.parameter.action;  
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetNH = ss.getSheetByName("nganhang");
+  // const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // const sheetNH = ss.getSheetByName("nganhang");
 //#01
   // Xác minh bên VBA
  if (action === "getIdGV") {
