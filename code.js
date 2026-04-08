@@ -5,7 +5,6 @@ const params = e.parameter;
   const type = params.type;
   const action = params.action || e.parameter.action;  
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // const sheetNH = ss.getSheetByName("nganhang");
 //#01
   // Xác minh bên VBA
  if (action === "getIdGV") {
@@ -152,7 +151,7 @@ const params = e.parameter;
   if (action === 'getLG') {
     var idTraCuu = params.id;
     if (!idTraCuu) return ContentService.createTextOutput("Thiếu ID rồi!").setMimeType(ContentService.MimeType.TEXT);
-   
+
     var data = sheetNH.getDataRange().getValues();
 
     for (var i = 1; i < data.length; i++) {
@@ -179,7 +178,8 @@ const params = e.parameter;
   }
   // 7. LẤY CÂU HỎI THEO ID
   if (action === 'getQuestionById') {
-    var id = params.id;    
+    var id = params.id;
+    var sheetNH = ss.getSheetByName("nganhang");
     var dataNH = sheetNH.getDataRange().getValues();
     for (var i = 1; i < dataNH.length; i++) {
       if (dataNH[i][0].toString() === id.toString()) {
@@ -412,7 +412,6 @@ const lock = LockService.getScriptLock();
   try {
     const data = JSON.parse(e.postData.contents || "{}");
     const action = (data.action || e.parameter.action || "").toString();
-    // const sheetNH = ss.getSheetByName("nganhang");
 
     const res = (status, message, payload) =>
       ContentService.createTextOutput(
