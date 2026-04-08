@@ -412,7 +412,7 @@ const lock = LockService.getScriptLock();
   try {
     const data = JSON.parse(e.postData.contents || "{}");
     const action = (data.action || e.parameter.action || "").toString();
-    const sheetNH = ss.getSheetByName("nganhang");
+    // const sheetNH = ss.getSheetByName("nganhang");
 
     const res = (status, message, payload) =>
       ContentService.createTextOutput(
