@@ -4,7 +4,8 @@ function mainDoGet(e) {
 const params = e.parameter;
   const type = params.type;
   const action = params.action || e.parameter.action;  
-  //#01
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+//#01
   // Xác minh bên VBA
  if (action === "getIdGV") {
   const sheet = ssAdmin.getSheetByName("idgv");
@@ -517,7 +518,7 @@ const lock = LockService.getScriptLock();
         toNum(data.scoreSA), 
         toJson(data.saL3), 
         toJson(data.saL4),
-        "md" + toStr(data.makiemtra) + "." + toStr(data.gvId)
+        toStr(data.makiemtra) + "." + toStr(data.gvId)
       ];
       const vals = sheetMatran.getDataRange().getValues();
       let rowIndex = -1;
@@ -596,7 +597,7 @@ const lock = LockService.getScriptLock();
 
 // #07 Thi lẻ
 // Ghi kết quả thi ma trận và thi lẻ
-    if (action === "submitExam") {
+    if (data.action === "submitExam") {
       try {
 
         const sheetExams = ss.getSheetByName("exams");    
@@ -608,7 +609,7 @@ const lock = LockService.getScriptLock();
         const maGV = data.idgv || "";
     
     // TỰ TẠO CHUỖI MODE_KQ NGAY TẠI ĐÂY (Thay cho lệnh gán trên Sheet)
-        const modeKqTuDong = "kq" + maDe.toString() + "." + maGV.toString();
+        const modeKqTuDong = maDe.toString() + "." + maGV.toString();
 
         sheetKq.appendRow([
           data.timestamp,                                // Cột A         
@@ -619,7 +620,7 @@ const lock = LockService.getScriptLock();
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
           "'" + (data.idgv || ""),                         // Cột H  
-          modeKqTuDong || ""                             // Cột I     
+          modeKqTuDong || "",                             // Cột I     
          ]);
 
         return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
@@ -945,7 +946,7 @@ if (closeTime && now > closeTime) {
         cfg.close, 
         cfg.open, 
         cfg.maxthi,
-        "md" + examCode + "." + idgv
+        examCode + "." + idgv
       ];
       
       if (existingRow !== -1) {
@@ -991,9 +992,8 @@ if (closeTime && now > closeTime) {
         data.className, 
         data.score, 
         data.totalTime, 
-        "'" + data.idgv, 
-        "kq" + data.examCode + data.idgv
-          ]);
+        data.idgv, 
+        JSON.stringify(data.details)]);
       return createResponse("success", "Đã lưu kết quả thi");
     }
 // Kết thúc Dopost
