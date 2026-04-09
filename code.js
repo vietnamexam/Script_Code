@@ -945,7 +945,7 @@ if (closeTime && now > closeTime) {
         cfg.close, 
         cfg.open, 
         cfg.maxthi,
-        examCode + "." + idgv
+        "md" + examCode + "." + idgv
       ];
       
       if (existingRow !== -1) {
