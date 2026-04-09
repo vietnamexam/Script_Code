@@ -992,7 +992,7 @@ if (closeTime && now > closeTime) {
         data.score, 
         data.totalTime, 
         "'" + data.idgv, 
-        "kq" + data.examCode + data.idgv || ""
+        "kq" + data.examCode + data.idgv
           ]);
       return createResponse("success", "Đã lưu kết quả thi");
     }
