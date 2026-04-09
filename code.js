@@ -619,7 +619,7 @@ const lock = LockService.getScriptLock();
           data.tongdiem || 0,                            // Cột F
           data.time || 0,                                // Cột G
           "'" + (data.idgv || ""),                         // Cột H  
-          modeKqTuDong || "",                             // Cột I     
+          modeKqTuDong || ""                             // Cột I     
          ]);
 
         return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
@@ -992,7 +992,7 @@ if (closeTime && now > closeTime) {
         data.score, 
         data.totalTime, 
         "'" + data.idgv, 
-        "kq" + data.examCode + data.idgv
+        "kq" + data.examCode + data.idgv || ""
       return createResponse("success", "Đã lưu kết quả thi");
     }
 // Kết thúc Dopost
