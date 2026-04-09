@@ -1015,20 +1015,20 @@ if (closeTime && now > closeTime) {
     }
 
     // 9. LƯU KẾT QUẢ THI TỔNG HỢP (Mặc định nếu có data.examCode)
-    if (data.examCode) {
-      let sheetResult = ss.getSheetByName("ketqua") || ss.insertSheet("ketqua");
-      sheetResult.appendRow([
-        new Date(), 
-        data.examCode, 
-        data.sbd, 
-        data.name, 
-        data.className, 
-        data.score, 
-        data.totalTime, 
-        data.idgv, 
-        JSON.stringify(data.details)]);
-      return createResponse("success", "Đã lưu kết quả thi");
-    }
+    //if (data.examCode) {
+     // let sheetResult = ss.getSheetByName("ketqua") || ss.insertSheet("ketqua");
+      //sheetResult.appendRow([
+       // new Date(), 
+        //data.examCode, 
+       // data.sbd, 
+       // data.name, 
+       // data.className, 
+       // data.score, 
+       // data.totalTime, 
+       // data.idgv, 
+        //JSON.stringify(data.details)]);
+      //return createResponse("success", "Đã lưu kết quả thi");
+   // }
 // Kết thúc Dopost
     return createResponse("error", "Không khớp lệnh nào!");
 
