@@ -993,6 +993,7 @@ if (closeTime && now > closeTime) {
         data.totalTime, 
         "'" + data.idgv, 
         "kq" + data.examCode + data.idgv || ""
+          ]);
       return createResponse("success", "Đã lưu kết quả thi");
     }
 // Kết thúc Dopost
