@@ -418,7 +418,39 @@ const lock = LockService.getScriptLock();
       ContentService.createTextOutput(
         JSON.stringify({ status, message, data: payload || null })
       ).setMimeType(ContentService.MimeType.JSON);
+   const sheetKq = ss.getSheetByName("ketqua") || ss.insertSheet("ketqua");
 
+  // Đảm bảo tiêu đề cột chuẩn nếu sheet mới tạo
+  if (sheetKq.getLastRow() === 0) {
+    sheetKq.appendRow(["Timestamp", "exams", "sbd", "name", "class", "tongdiem", "time", "idgv"]);
+  }
+
+  // LOGIC CHUNG CHO CẢ 2 LOẠI (Vì cấu trúc cột ghi là giống nhau)
+  if (action === "submitExamMatrix" || action === "submitExamWord") {
+    try {
+      sheetKq.appendRow([
+        data.timestamp,          // Cột A: Timestamp
+        data.exams,              // Cột B: exams
+        data.sbd,                // Cột C: sbd (thêm dấu nháy để tránh mất số 0)
+        data.name,               // Cột D: name
+        data.class,              // Cột E: class
+        data.tongdiem,           // Cột F: tongdiem
+        data.time,               // Cột G: time
+        "'" + data.idgv          // Cột H: idgv
+      ]);
+
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "success", 
+        message: "Đã ghi nhận kết quả " + (action === "submitExamMatrix" ? "Ma trận" : "Đề lẻ")
+      })).setMimeType(ContentService.MimeType.JSON);
+      
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "error", 
+        message: err.toString() 
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
 
 
     // 2. Nếu sau này thầy gửi dữ liệu đăng ký (có pass, phone...)
