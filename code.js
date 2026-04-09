@@ -596,7 +596,7 @@ const lock = LockService.getScriptLock();
 
 // #07 Thi lẻ
 // Ghi kết quả thi ma trận và thi lẻ
-    if (data.action === "submitExam" || action === "submitExam") {
+    if (action === "submitExam") {
       try {
 
         const sheetExams = ss.getSheetByName("exams");    
@@ -608,7 +608,7 @@ const lock = LockService.getScriptLock();
         const maGV = data.idgv || "";
     
     // TỰ TẠO CHUỖI MODE_KQ NGAY TẠI ĐÂY (Thay cho lệnh gán trên Sheet)
-        const modeKqTuDong = maDe.toString() + "." + maGV.toString();
+        const modeKqTuDong = "kq" + maDe.toString() + "." + maGV.toString();
 
         sheetKq.appendRow([
           data.timestamp,                                // Cột A         
@@ -991,8 +991,8 @@ if (closeTime && now > closeTime) {
         data.className, 
         data.score, 
         data.totalTime, 
-        data.idgv, 
-        JSON.stringify(data.details)]);
+        "'" + data.idgv, 
+        "kq" + data.examCode + data.idgv
       return createResponse("success", "Đã lưu kết quả thi");
     }
 // Kết thúc Dopost
