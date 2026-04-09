@@ -517,7 +517,7 @@ const lock = LockService.getScriptLock();
         toNum(data.scoreSA), 
         toJson(data.saL3), 
         toJson(data.saL4),
-        toStr(data.makiemtra) + "." + toStr(data.gvId)
+        "md" + toStr(data.makiemtra) + "." + toStr(data.gvId)
       ];
       const vals = sheetMatran.getDataRange().getValues();
       let rowIndex = -1;
